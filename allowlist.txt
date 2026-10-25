@@ -1,0 +1,6 @@
+# Allowlist — domains listed here will NEVER be blocked,
+# even if they appear in a blocklist.
+# Useful for false positives.
+
+# Example:
+# safe-ads.example.com

@@ -1,0 +1,7 @@
+# Custom blocklist — add your own domains here
+# Category: custom
+
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+

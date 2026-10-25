@@ -1,0 +1,33 @@
+{
+    "listen_host": "0.0.0.0",
+    "listen_port": 5053,
+    "upstream_dns": "8.8.8.8",
+    "upstream_fallback": "1.1.1.1",
+    "upstream_port": 53,
+    "upstream_timeout": 3,
+
+    "blocking_mode": "zero_ip",
+
+    "cache_size": 1024,
+    "cache_min_ttl": 60,
+    "cache_max_ttl": 3600,
+
+    "rate_limit_queries": 50,
+    "rate_limit_window": 10,
+    "rate_limit_block_seconds": 30,
+
+    "dashboard_host": "127.0.0.1",
+    "dashboard_port": 8080,
+
+    "log_file": "dns_server.log",
+    "db_file": "queries.db",
+
+    "blocklist_dir": "blocklists",
+    "allowlist_file": "allowlist.txt",
+    "blocked_ips_file": "blocked_ips.txt",
+
+    "auto_update": true,
+    "update_interval_hours": 24,
+    "update_time": "02:00",
+    "oisd_url": "https://big.oisd.nl/domainswild/"
+}

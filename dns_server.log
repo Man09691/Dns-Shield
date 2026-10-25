@@ -1,0 +1,83 @@
+2026-10-18 19:27:35,684  INFO      root  Logging to console and dns_server.log
+2026-10-18 19:27:35,685  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-18 19:27:35,686  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-18 19:27:35,687  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-18 19:27:35,687  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-18 19:27:35,687  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-18 19:27:35,688  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-18 19:27:35,704  INFO      dns.stats  Query database initialized: queries.db
+2026-10-18 19:27:59,155  INFO      root  Logging to console and dns_server.log
+2026-10-18 19:27:59,156  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-18 19:27:59,157  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-18 19:27:59,158  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-18 19:27:59,158  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-18 19:27:59,158  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-18 19:27:59,159  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-18 19:27:59,161  INFO      dns.stats  Query database initialized: queries.db
+2026-10-18 19:28:26,612  INFO      root  Logging to console and dns_server.log
+2026-10-18 19:28:26,613  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-18 19:28:26,613  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-18 19:28:26,614  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-18 19:28:26,615  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-18 19:28:26,615  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-18 19:28:26,616  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-18 19:28:26,617  INFO      dns.stats  Query database initialized: queries.db
+2026-10-18 19:28:26,619  INFO      dns.server  DNS server listening on 0.0.0.0:5053
+2026-10-18 19:28:39,195  INFO      dns.server  FORWARDED    127.0.0.1  youtube.com  A  -> 142.251.106.190, 142.251.106.91, 142.251.106.136, 142.251.106.93  TTL=81s  84.6ms
+2026-10-18 19:28:49,182  INFO      dns.server  BLOCKED      127.0.0.1  doubleclick.net  A  [ads]
+2026-10-18 19:28:58,363  INFO      dns.server  BLOCKED      127.0.0.1  ads.doubleclick.net  A  [ads]
+2026-10-18 19:28:58,374  INFO      dns.server  FORWARDED    127.0.0.1  google.com  A  -> 192.178.193.100, 192.178.193.102, 192.178.193.138, 192.178.193.139, 192.178.193.113, 192.178.193.101  TTL=188s  49.2ms
+2026-10-18 19:28:58,404  INFO      dns.server  BLOCKED      127.0.0.1  doubleclick.net  A  [ads]
+2026-10-18 19:28:58,417  INFO      dns.server  BLOCKED      127.0.0.1  tracking.ads.doubleclick.net  A  [ads]
+2026-10-18 19:28:58,426  INFO      dns.server  BLOCKED      127.0.0.1  googlesyndication.com  A  [ads]
+2026-10-18 19:28:58,441  INFO      dns.server  CACHED       127.0.0.1  youtube.com  A  TTL=62s  0.6ms
+2026-10-18 19:29:07,943  INFO      dns.server  FORWARDED    127.0.0.1  example.com  A  -> 104.20.23.154, 172.66.147.243  TTL=300s  57.1ms
+2026-10-18 19:29:08,005  INFO      dns.server  CACHED       127.0.0.1  example.com  A  TTL=300s  0.3ms
+2026-10-18 19:30:01,146  INFO      root  Logging to console and dns_server.log
+2026-10-18 19:30:01,146  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-18 19:30:01,147  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-18 19:30:01,147  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-18 19:30:01,148  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-18 19:30:01,148  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-18 19:30:01,149  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-18 19:30:01,151  INFO      dns.stats  Query database initialized: queries.db
+2026-10-18 19:30:01,161  INFO      dns.server  DNS server listening on 0.0.0.0:5053
+2026-10-19 15:22:56,888  INFO      root  Logging to console and dns_server.log
+2026-10-19 15:22:56,966  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-19 15:22:56,982  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-19 15:22:56,989  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-19 15:22:56,990  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-19 15:22:56,991  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-19 15:22:56,993  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-19 15:22:57,031  INFO      dns.stats  Query database initialized: queries.db
+2026-10-19 15:22:57,845  INFO      dns.server  DNS server listening on 0.0.0.0:5053
+2026-10-19 15:23:07,760  INFO      dns.server  FORWARDED    127.0.0.1  youtube.com  A  -> 142.250.143.93, 142.250.143.190, 142.250.143.91, 142.250.143.136  TTL=104s  162.7ms
+2026-10-19 15:23:41,715  INFO      dns.server  CACHED       127.0.0.1  youtube.com  A  TTL=70s  0.4ms
+2026-10-19 15:23:56,581  INFO      dns.server  CACHED       127.0.0.1  youtube.com  A  TTL=55s  0.5ms
+2026-10-19 15:24:12,570  INFO      dns.server  BLOCKED      127.0.0.1  doubleclick.net  A  [ads]
+2026-10-19 15:24:12,698  INFO      dns.server  BLOCKED      127.0.0.1  ads.doubleclick.net  A  [ads]
+2026-10-19 15:24:57,965  DEBUG     dns.cache  Cleaned up 1 expired cache entries
+2026-10-19 15:26:31,635  INFO      dns.server  FORWARDED    127.0.0.1  youtube.com  A  -> 192.178.211.190, 192.178.211.91, 192.178.211.136, 192.178.211.93  TTL=300s  161.6ms
+2026-10-19 15:26:44,183  INFO      dns.server  CACHED       127.0.0.1  youtube.com  A  TTL=287s  0.5ms
+2026-10-19 17:55:58,040  INFO      root  Logging to console and dns_server.log
+2026-10-19 17:55:58,071  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-19 17:55:58,092  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-19 17:55:58,107  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-19 17:55:58,138  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-19 17:55:58,147  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-19 17:55:58,163  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-19 17:55:58,205  INFO      dns.stats  Query database initialized: queries.db
+2026-10-19 17:55:58,233  INFO      dns.server  DNS server listening on 0.0.0.0:5053
+2026-10-19 17:56:05,609  INFO      dns.server  FORWARDED    127.0.0.1  youtube.com  A  -> 142.251.126.136, 142.251.126.93, 142.251.126.91, 142.251.126.190  TTL=300s  35.8ms
+2026-10-19 17:56:41,405  INFO      dns.server  BLOCKED      127.0.0.1  doubleclick.net  A  [ads]
+2026-10-19 17:58:18,929  INFO      dns.server  DNS server stopped
+2026-10-19 17:58:27,398  INFO      root  Logging to console and dns_server.log
+2026-10-19 17:58:27,399  INFO      dns.blocklist  Loaded 10 domains from blocklists\ads.txt (category: ads)
+2026-10-19 17:58:27,400  INFO      dns.blocklist  Loaded 0 domains from blocklists\custom.txt (category: custom)
+2026-10-19 17:58:27,401  INFO      dns.blocklist  Loaded 2 domains from blocklists\malware.txt (category: malware)
+2026-10-19 17:58:27,402  INFO      dns.blocklist  Loaded 10 domains from blocklists\trackers.txt (category: trackers)
+2026-10-19 17:58:27,403  INFO      dns.blocklist  Total blocked domains loaded: 22
+2026-10-19 17:58:27,404  INFO      dns.blocklist  Loaded 0 allowed domains
+2026-10-19 17:58:27,410  INFO      dns.stats  Query database initialized: queries.db
+2026-10-19 17:58:27,425  INFO      dns.server  DNS server listening on 0.0.0.0:5053
+2026-10-19 17:58:32,459  INFO      dns.server  BLOCKED      127.0.0.1  doubleclick.net  A  [ads]

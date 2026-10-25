@@ -1,0 +1,13 @@
+# Trackers blocklist — domains that track your browsing activity
+# Category: trackers
+
+google-analytics.com
+analytics.google.com
+googletagmanager.com
+facebook.com
+connect.facebook.net
+pixel.facebook.com
+hotjar.com
+mixpanel.com
+segment.io
+amplitude.com
