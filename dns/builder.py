@@ -108,6 +108,19 @@ def build_refused_response(data, question_end, query_id):
     return header + question_section
 
 
+def build_servfail_response(data, question_end, query_id):
+    """
+    Build a SERVFAIL response (RCODE=2).
+    Used when upstream DNS query fails or times out.
+
+    0x8182 = QR(1) + RD(1) + RA(1) + RCODE=2 (Server Failure)
+    """
+    flags = 0x8182
+    header = struct.pack(">HHHHHH", query_id, flags, 1, 0, 0, 0)
+    question_section = data[12:question_end]
+    return header + question_section
+
+
 def swap_query_id(response_data, new_id):
     """
     Replace the first 2 bytes of a DNS response with a new query ID.

@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Allowlist — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>Trusted Allowlist</span>
+        <span id="allowlistCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono font-bold border border-emerald-500/20">
+          0 Domains Whitelisted
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Domains specified here will <strong>NEVER</strong> be blocked, overriding all ad and tracking blocklists.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ADD NEW ALLOWED DOMAIN INPUT
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+    <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+      <i class="fa-solid fa-plus text-emerald-400"></i>
+      <span>Add Domain to Allowlist</span>
+    </h2>
+
+    <form id="addAllowForm" onsubmit="event.preventDefault(); addDomain();" class="flex flex-col sm:flex-row items-center gap-3">
+      <div class="relative flex-1 w-full">
+        <i class="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="allowInput" placeholder="e.g. safe-ads.example.com, tracking.company.internal"
+          autocomplete="off" spellcheck="false" required
+          class="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 font-mono outline-none focus:border-emerald-500 transition shadow-inner" />
+      </div>
+      <button type="submit" id="btnAddDomain"
+        class="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 shrink-0">
+        <i class="fa-solid fa-check"></i>
+        <span>Add to Allowlist</span>
+      </button>
+    </form>
+    <p class="text-[11px] text-slate-400 mt-2 font-mono">
+      Saved to <code class="text-cyan-400">allowlist.txt</code> and updated in memory without restarting port 5053.
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ALLOWLIST DATA TABLE
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+    <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+      <h3 class="text-sm font-bold text-white font-mono">Allowed Hostnames</h3>
+      <div class="relative w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="tableFilter" oninput="filterAllowlist()" placeholder="Search in allowlist..."
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-400 font-mono outline-none focus:border-emerald-500" />
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs font-mono">
+        <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
+          <tr>
+            <th class="px-6 py-3.5 w-16">#</th>
+            <th class="px-6 py-3.5">Domain Name</th>
+            <th class="px-6 py-3.5">Status</th>
+            <th class="px-6 py-3.5 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="allowTableBody" class="divide-y divide-slate-800/60">
+          <tr>
+            <td colspan="4" class="text-center py-12 text-slate-400">
+              <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-slate-400 block"></i>
+              Loading allowlist entries...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let allowDomains = [];
+
+  async function loadAllowlist() {
+    try {
+      const res = await fetch('/api/allowlist');
+      const data = await res.json();
+      allowDomains = data.domains || [];
+
+      document.getElementById('allowlistCountBadge').innerText = `${allowDomains.length} Domains Whitelisted`;
+      renderTable(allowDomains);
+    } catch (err) {
+      console.error("Failed to load allowlist:", err);
+      document.getElementById('allowTableBody').innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-8 text-red-400">
+            Error reading allowlist.txt
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  function renderTable(list) {
+    const tbody = document.getElementById('allowTableBody');
+    if (!list || list.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="text-center py-12 text-slate-400">
+            <i class="fa-solid fa-circle-check text-2xl mb-2 text-emerald-500/40 block"></i>
+            No custom domains added to allowlist yet. Domains added here will bypass all blocklists.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    list.forEach((domain, idx) => {
+      html += `
+        <tr class="hover:bg-slate-900/50 transition">
+          <td class="px-6 py-3 text-slate-400 text-xs">${idx + 1}</td>
+          <td class="px-6 py-3 text-white font-bold text-xs">${domain}</td>
+          <td class="px-6 py-3">
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>WHITELISTED
+            </span>
+          </td>
+          <td class="px-6 py-3 text-right">
+            <button onclick="removeDomain('${domain}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 transition">
+              <i class="fa-solid fa-trash-can mr-1"></i> Remove
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+  }
+
+  function filterAllowlist() {
+    const q = document.getElementById('tableFilter').value.trim().toLowerCase();
+    if (!q) {
+      renderTable(allowDomains);
+      return;
+    }
+    const filtered = allowDomains.filter(d => d.toLowerCase().includes(q));
+    renderTable(filtered);
+  }
+
+  async function addDomain() {
+    const input = document.getElementById('allowInput');
+    const val = input.value.trim();
+    if (!val) return;
+
+    const btn = document.getElementById('btnAddDomain');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/allowlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: val })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`'${data.domain}' added to allowlist`, "success");
+        input.value = '';
+        loadAllowlist();
+      } else {
+        showToast(data.error || "Failed to add domain", "error");
+      }
+    } catch (e) {
+      showToast("Request failed: " + e, "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeDomain(domain) {
+    if (!confirm(`Remove '${domain}' from allowlist?`)) return;
+
+    try {
+      const res = await fetch(`/api/allowlist?domain=${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`'${domain}' removed from allowlist`, "success");
+        loadAllowlist();
+      } else {
+        showToast(data.error || "Failed to remove domain", "error");
+      }
+    } catch (e) {
+      showToast("Request failed: " + e, "error");
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadAllowlist);
+</script>
+{% endblock %}
+

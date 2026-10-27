@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block title %}Query Logs — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-6 max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>Query Logs</span>
+        <span id="logCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-medium border border-slate-700">
+          0 Total Logs
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Live inspection of all client DNS queries processed on port 5053.</p>
+    </div>
+
+    <!-- Quick stats summary pills -->
+    <div class="flex items-center gap-2 font-mono text-xs">
+      <span class="px-2.5 py-1 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+        <strong id="pillBlocked">0</strong> Blocked
+      </span>
+      <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <strong id="pillForwarded">0</strong> Forwarded
+      </span>
+      <span class="px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+        <strong id="pillCached">0</strong> Cached
+      </span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       FILTER & SEARCH TOOLBAR
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+    
+    <!-- Left: Search Box -->
+    <div class="relative w-full md:w-80">
+      <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+      <input type="text" id="logSearch" placeholder="Filter by domain name..."
+        class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-200 placeholder-slate-400 outline-none focus:border-blue-500 transition font-mono" />
+      <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+    </div>
+
+    <!-- Right: Filter Status Dropdown + Page Size + Refresh Status -->
+    <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
+      
+      <!-- Status Filter -->
+      <div class="flex items-center gap-2">
+        <label for="statusFilter" class="text-xs text-slate-400 font-mono">Status:</label>
+        <select id="statusFilter" onchange="onFilterChange()"
+          class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition font-mono cursor-pointer">
+          <option value="ALL">All Statuses</option>
+          <option value="BLOCKED">🔴 BLOCKED only</option>
+          <option value="FORWARDED">🟢 FORWARDED only</option>
+          <option value="CACHED">🔵 CACHED only</option>
+          <option value="RATE_LIMITED">🟡 RATE LIMITED</option>
+        </select>
+      </div>
+
+      <!-- Limit per page -->
+      <div class="flex items-center gap-2">
+        <label for="limitSelect" class="text-xs text-slate-400 font-mono">Per Page:</label>
+        <select id="limitSelect" onchange="onLimitChange()"
+          class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition font-mono cursor-pointer">
+          <option value="50" selected>50</option>
+          <option value="100">100</option>
+          <option value="200">200</option>
+        </select>
+      </div>
+
+      <!-- Manual refresh button -->
+      <button onclick="fetchLogs()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs transition" title="Refresh table now">
+        <i id="manualRefreshIcon" class="fa-solid fa-rotate"></i>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       QUERY LOGS DATA TABLE
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] font-mono border-b border-slate-800">
+          <tr>
+            <th class="px-5 py-3.5">Time</th>
+            <th class="px-5 py-3.5">Client IP</th>
+            <th class="px-5 py-3.5">Domain</th>
+            <th class="px-4 py-3.5">Type</th>
+            <th class="px-4 py-3.5">Status</th>
+            <th class="px-5 py-3.5 text-right">TimeTaken</th>
+            <th class="px-5 py-3.5">Upstream</th>
+          </tr>
+        </thead>
+        <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
+          <tr>
+            <td colspan="7" class="text-center py-12 text-slate-400">
+              <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-slate-400 block"></i>
+              Loading query logs...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Table Footer / Pagination -->
+    <div class="p-4 border-t border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+      <div id="paginationInfo" class="text-slate-400 font-mono">
+        Showing 0 to 0 of 0 entries
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="btnPrevPage" onclick="prevPage()" disabled
+          class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 hover:text-slate-200 transition font-mono">
+          <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+        </button>
+
+        <span id="pageIndicator" class="px-3 py-1.5 rounded-lg bg-slate-950 text-cyan-400 font-mono border border-slate-800">
+          Page 1 / 1
+        </span>
+
+        <button id="btnNextPage" onclick="nextPage()" disabled
+          class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 hover:text-slate-200 transition font-mono">
+          Next <i class="fa-solid fa-chevron-right ml-1"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let allLogs = [];
+  let currentPage = 1;
+  let pageSize = 100;
+  let isFetching = false;
+  let logPollTimer = null;
+
+  // Search input: filter table rows client-side by domain or client IP
+  document.getElementById('logSearch').addEventListener('input', (e) => {
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (e.target.value) {
+      clearBtn.classList.remove('hidden');
+    } else {
+      clearBtn.classList.add('hidden');
+    }
+    currentPage = 1;
+    applyClientFilters();
+  });
+
+  function clearSearch() {
+    document.getElementById('logSearch').value = '';
+    document.getElementById('clearSearchBtn').classList.add('hidden');
+    currentPage = 1;
+    applyClientFilters();
+  }
+
+  function onFilterChange() {
+    currentPage = 1;
+    applyClientFilters();
+  }
+
+  function onLimitChange() {
+    pageSize = parseInt(document.getElementById('limitSelect').value) || 100;
+    currentPage = 1;
+    applyClientFilters();
+  }
+
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      applyClientFilters();
+    }
+  }
+
+  function nextPage() {
+    const filtered = getFilteredLogs();
+    const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+    if (currentPage < totalPages) {
+      currentPage++;
+      applyClientFilters();
+    }
+  }
+
+  function getStatusBadge(status) {
+    status = (status || "").toUpperCase();
+    if (status === 'BLOCKED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>BLOCKED</span>';
+    }
+    if (status === 'CACHED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>CACHED</span>';
+    }
+    if (status === 'RATE_LIMITED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>RATE_LIMITED</span>';
+    }
+    return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>FORWARDED</span>';
+  }
+
+  // Fetch real logs from DB
+  async function fetchLogs() {
+    if (isFetching) return;
+    isFetching = true;
+
+    const icon = document.getElementById('manualRefreshIcon');
+    if (icon) icon.classList.add('fa-spin');
+
+    try {
+      const res = await fetch(`/api/logs?limit=100`);
+      const data = await res.json();
+
+      if (Array.isArray(data)) {
+        allLogs = data;
+      } else if (data.logs) {
+        allLogs = data.logs;
+      }
+
+      applyClientFilters();
+      updateSummaryPills();
+
+    } catch (err) {
+      console.error("Error fetching logs:", err);
+    } finally {
+      isFetching = false;
+      if (icon) icon.classList.remove('fa-spin');
+    }
+  }
+
+  // Filter client-side by domain/client and status dropdown
+  function getFilteredLogs() {
+    const q = (document.getElementById('logSearch').value || '').trim().toLowerCase();
+    const filter = (document.getElementById('statusFilter').value || 'ALL').toUpperCase();
+
+    return allLogs.filter(log => {
+      // Domain or Client match
+      if (q) {
+        const dMatch = log.domain && log.domain.toLowerCase().includes(q);
+        const cMatch = log.client && log.client.toLowerCase().includes(q);
+        if (!dMatch && !cMatch) return false;
+      }
+      // Status match
+      if (filter !== 'ALL') {
+        if (log.status !== filter) return false;
+      }
+      return true;
+    });
+  }
+
+  function applyClientFilters() {
+    const filtered = getFilteredLogs();
+    const total = filtered.length;
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const pageItems = filtered.slice(startIdx, startIdx + pageSize);
+
+    renderLogsTable(pageItems);
+    updatePaginationControls(total, startIdx, pageItems.length);
+  }
+
+  function renderLogsTable(logs) {
+    const tbody = document.getElementById('logsTableBody');
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center py-12 text-slate-400">
+            <i class="fa-solid fa-inbox text-2xl mb-2 text-slate-400 block"></i>
+            No matching query records found.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    logs.forEach(log => {
+      const statusBadge = getStatusBadge(log.status);
+      const upstream = log.upstream ? `<span class="text-slate-300 font-mono">${log.upstream}</span>` : '<span class="text-slate-400">-</span>';
+      const latVal = (typeof log.latency === 'number') ? log.latency.toFixed(1) : log.latency;
+      // Real timestamp from DB, never Date.now()
+      const timeDisplay = log.time || log.timestamp || '-';
+
+      html += `
+        <tr class="hover:bg-slate-900/60 transition">
+          <td class="px-5 py-3 text-slate-400 font-mono text-[11px] whitespace-nowrap">${timeDisplay}</td>
+          <td class="px-5 py-3 text-slate-300 font-mono text-xs whitespace-nowrap">${log.client || '-'}</td>
+          <td class="px-5 py-3 font-mono text-slate-100 font-medium break-all max-w-xs">${log.domain}</td>
+          <td class="px-4 py-3 text-slate-400 font-mono text-xs">${log.qtype || 'A'}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+          <td class="px-5 py-3 text-right font-mono font-bold ${log.blocked ? 'text-red-400' : 'text-emerald-400'} whitespace-nowrap">${latVal} ms</td>
+          <td class="px-5 py-3 text-xs whitespace-nowrap">${upstream}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function updatePaginationControls(total, startIdx, count) {
+    const totalPages = Math.ceil(total / pageSize) || 1;
+    const end = count > 0 ? startIdx + count : 0;
+    const start = count > 0 ? startIdx + 1 : 0;
+
+    document.getElementById('logCountBadge').innerText = `${allLogs.length} Total Logs`;
+    document.getElementById('paginationInfo').innerText = `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${total.toLocaleString()} filtered entries`;
+    document.getElementById('pageIndicator').innerText = `Page ${currentPage} / ${totalPages}`;
+
+    document.getElementById('btnPrevPage').disabled = (currentPage <= 1);
+    document.getElementById('btnNextPage').disabled = (currentPage >= totalPages);
+  }
+
+  async function updateSummaryPills() {
+    try {
+      const res = await fetch('/api/stats');
+      const stats = await res.json();
+      document.getElementById('pillBlocked').innerText = (stats.blocked || 0).toLocaleString();
+      document.getElementById('pillForwarded').innerText = (stats.forwarded || (stats.total - stats.blocked - stats.cached) || 0).toLocaleString();
+      document.getElementById('pillCached').innerText = (stats.cached || stats.cache_hits || 0).toLocaleString();
+    } catch(e) {}
+  }
+
+  function startLogPolling() {
+    if (logPollTimer) clearInterval(logPollTimer);
+    logPollTimer = setInterval(() => {
+      if (window.autoRefreshEnabled) {
+        fetchLogs();
+      }
+    }, 2000);
+  }
+
+  function stopLogPolling() {
+    if (logPollTimer) {
+      clearInterval(logPollTimer);
+      logPollTimer = null;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchLogs();
+    startLogPolling();
+
+    window.addEventListener('autorefresh-toggle', (e) => {
+      if (e.detail.enabled) {
+        fetchLogs();
+        startLogPolling();
+      } else {
+        stopLogPolling();
+      }
+    });
+  });
+</script>
+{% endblock %}
+

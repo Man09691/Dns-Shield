@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-7xl mx-auto">
+
+  <!-- Header section -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>System Dashboard</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono font-medium">
+          Port 5053 Active
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Real-time recursive DNS resolution, telemetry, and automated threat mitigation.</p>
+    </div>
+
+    <!-- Quick action buttons -->
+    <div class="flex items-center gap-2">
+      <a href="/logs" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+        <i class="fa-solid fa-list-check text-blue-400"></i>
+        <span>View Logs</span>
+      </a>
+      <a href="/lookup" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition shadow-sm shadow-blue-900/20">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span>Domain Lookup</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       4 STAT CARDS (Total Queries, Blocked %, Cache %, Avg Speed)
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+    <!-- Card 1: Total Queries -->
+    <div class="bg-[#0f172a] border border-slate-800/80 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-slate-700 transition">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Queries</span>
+        <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm">
+          <i class="fa-solid fa-server"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="cardTotalQueries" class="text-3xl font-black text-white font-mono">0</span>
+        <span class="text-[11px] text-slate-400 font-mono">queries</span>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
+        <span>Forwarded: <strong id="cardForwardedCount" class="text-slate-300">0</strong></span>
+        <span>Cached: <strong id="cardCachedSub" class="text-slate-300">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 2: Blocked % (Red) -->
+    <div class="bg-[#0f172a] border border-red-500/20 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-red-500/40 transition">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-red-400">Blocked Queries</span>
+        <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center text-sm">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="cardBlockedPct" class="text-3xl font-black text-red-400 font-mono">0.0%</span>
+        <span class="text-[11px] text-red-400/70 font-mono">ratio</span>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
+        <span>Blocked: <strong id="cardBlockedCount" class="text-red-400">0</strong></span>
+        <span>Rules: <strong class="text-slate-300">235,974</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 3: Cache % (Blue) -->
+    <div class="bg-[#0f172a] border border-blue-500/20 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-blue-500/40 transition">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-blue-400">Cache Hit Ratio</span>
+        <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center text-sm">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="cardCachePct" class="text-3xl font-black text-blue-400 font-mono">0.0%</span>
+        <span class="text-[11px] text-blue-400/70 font-mono">hits / (hits+fwd)</span>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
+        <span>Hits: <strong id="cardCacheHits" class="text-blue-400">0</strong></span>
+        <span>Live: <strong id="cardCacheLive" class="text-slate-300">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 4: Avg Speed (Green) -->
+    <div class="bg-[#0f172a] border border-emerald-500/20 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-emerald-500/40 transition">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Average Speed</span>
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
+          <i class="fa-solid fa-gauge-high"></i>
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="cardAvgSpeed" class="text-3xl font-black text-emerald-400 font-mono">0.0 ms</span>
+      </div>
+      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
+        <span>Internal: <strong id="cardInternalUs" class="text-emerald-400">0</strong> µs</span>
+        <span>Blocked: <strong id="cardBlockedMs" class="text-slate-300">0</strong> ms</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TWO COLUMNS:
+       Left: 24h Line Chart (Allowed vs Blocked)
+       Right: Top 10 Blocked Domains with Category Badges
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- Left Column: 24h Activity Line Chart (7 cols) -->
+    <div class="lg:col-span-7 bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>24-Hour Query Volume</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Aggregated hourly from <code class="text-cyan-400 font-mono text-[11px]">query_stats_hourly</code></p>
+        </div>
+        <div class="flex items-center gap-3 text-xs font-mono">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+            <span class="text-slate-300">Allowed</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+            <span class="text-slate-300">Blocked</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Canvas Container -->
+      <div class="h-72 w-full relative">
+        <canvas id="hourlyLineChart"></canvas>
+        <div id="hourlyEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-[#0f172a]/90 backdrop-blur-sm z-10 text-slate-400 text-xs font-mono rounded-xl">
+          <i class="fa-solid fa-chart-line text-2xl text-slate-600 mb-2"></i>
+          <span>No data yet - browse some sites</span>
+        </div>
+      </div>
+
+      <!-- Footer Info -->
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <span>Resolution: 1 Hour intervals</span>
+        <span id="chartTotalLabel">Last 24 Hours Total: 0 queries</span>
+      </div>
+    </div>
+
+    <!-- Right Column: Top 10 Blocked Domains (5 cols) -->
+    <div class="lg:col-span-5 bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white">Top Blocked Domains</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Most intercepted ad, tracker & malware hostnames</p>
+        </div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 font-bold">
+          Top 10
+        </span>
+      </div>
+
+      <!-- List Container -->
+      <div id="topBlockedList" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
+        <div class="text-center py-10 text-slate-400 text-xs font-mono">
+          <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-slate-400"></i>
+          <div>Loading blocked domains...</div>
+        </div>
+      </div>
+
+      <!-- Quick Check Action -->
+      <div class="mt-4 pt-3 border-t border-slate-800/80">
+        <a href="/lookup" class="block text-center py-2 text-xs font-medium text-blue-400 hover:text-blue-300 transition bg-blue-500/5 hover:bg-blue-500/10 rounded-xl border border-blue-500/20">
+          Check any domain in lookup tool &rarr;
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BOTTOM ROW: Upstream Resolver Race & Latency Percentiles
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Upstream Resolvers -->
+    <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-network-wired text-cyan-400"></i>
+            <span>Upstream Resolver Performance</span>
+          </h3>
+          <p class="text-xs text-slate-400">Parallel race between Google (8.8.8.8) and Cloudflare (1.1.1.1)</p>
+        </div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">UDP 53</span>
+      </div>
+
+      <div id="upstreamContainer" class="space-y-3">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Latency Metrics Breakdown -->
+    <div class="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-stopwatch text-emerald-400"></i>
+            <span>Latency Distribution</span>
+          </h3>
+          <p class="text-xs text-slate-400">Internal lookup microsecond overhead vs recursive resolution</p>
+        </div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Telemetry</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Internal Lookup</div>
+          <div id="latInternalUs" class="text-lg font-black text-emerald-400 font-mono mt-1">0.0 µs</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">O(1) memory lookup</div>
+        </div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Blocked Time</div>
+          <div id="latBlockedMs" class="text-lg font-black text-red-400 font-mono mt-1">0.0 ms</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">0.0.0.0 synthesized</div>
+        </div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Forwarded p50</div>
+          <div id="latFwdP50" class="text-lg font-black text-cyan-400 font-mono mt-1">0.0 ms</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">Median network latency</div>
+        </div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
+          <div class="text-[10px] text-slate-400 font-bold uppercase">Forwarded p95</div>
+          <div id="latFwdP95" class="text-lg font-black text-amber-400 font-mono mt-1">0.0 ms</div>
+          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">95th percentile ceiling</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let hourlyChart = null;
+  let prevTotal = 0;
+  let prevBlockedPct = 0;
+  let prevCacheRatio = 0;
+  let prevAvgSpeed = 0;
+  let dashboardTimer = null;
+
+  // Number count-up animation from old real value to new real value
+  function animateNumber(elementId, start, end, decimals = 0, suffix = '') {
+    const obj = document.getElementById(elementId);
+    if (!obj) return;
+    start = Number(start) || 0;
+    end = Number(end) || 0;
+    if (start === end) {
+      obj.innerText = (decimals > 0 ? end.toFixed(decimals) : Math.round(end).toLocaleString()) + suffix;
+      return;
+    }
+    const duration = 500;
+    const startTime = performance.now();
+
+    function step(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const current = start + (end - start) * (1 - Math.pow(1 - progress, 3));
+      obj.innerText = (decimals > 0 ? current.toFixed(decimals) : Math.round(current).toLocaleString()) + suffix;
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        obj.innerText = (decimals > 0 ? end.toFixed(decimals) : Math.round(end).toLocaleString()) + suffix;
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  // Determine category badge style
+  function getCategoryBadge(domain) {
+    domain = (domain || "").toLowerCase();
+    if (domain.includes('facebook') || domain.includes('track') || domain.includes('telemetry') || domain.includes('metric')) {
+      return '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">Trackers</span>';
+    }
+    if (domain.includes('malware') || domain.includes('phish') || domain.includes('virus')) {
+      return '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">Malware</span>';
+    }
+    if (domain.includes('doubleclick') || domain.includes('custom')) {
+      return '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">Custom</span>';
+    }
+    return '<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">Ads</span>';
+  }
+
+  // Initialize 24h Line Chart (blocked, allowed)
+  function initHourlyChart() {
+    const ctx = document.getElementById('hourlyLineChart').getContext('2d');
+
+    const blockedGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    blockedGrad.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
+    blockedGrad.addColorStop(1, 'rgba(239, 68, 68, 0.0)');
+
+    const allowedGrad = ctx.createLinearGradient(0, 0, 0, 300);
+    allowedGrad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+    allowedGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+    hourlyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array(24).fill(''),
+        datasets: [
+          {
+            label: 'Blocked Queries',
+            data: Array(24).fill(0),
+            borderColor: '#ef4444',
+            backgroundColor: blockedGrad,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#ef4444',
+          },
+          {
+            label: 'Allowed Queries',
+            data: Array(24).fill(0),
+            borderColor: '#10b981',
+            backgroundColor: allowedGrad,
+            borderWidth: 2,
+            tension: 0.4,
+            fill: true,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#10b981',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleColor: '#f8fafc',
+            bodyColor: '#cbd5e1',
+            padding: 10,
+            boxPadding: 4,
+            usePointStyle: true,
+            titleFont: { family: 'monospace', size: 12 },
+            bodyFont: { family: 'monospace', size: 12 }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: 'rgba(51, 65, 85, 0.2)' },
+            ticks: { color: '#64748b', font: { family: 'monospace', size: 10 }, maxRotation: 0 }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(51, 65, 85, 0.2)' },
+            ticks: { color: '#64748b', font: { family: 'monospace', size: 10 }, precision: 0 }
+          }
+        }
+      }
+    });
+  }
+
+  // Refresh Dashboard Data from Real DB Endpoints
+  async function refreshData() {
+    try {
+      const [statsRes, hourlyRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/hourly?hours=24')
+      ]);
+
+      const data = await statsRes.json();
+      const hourly = await hourlyRes.json();
+
+      // Read real stats values
+      const total = Number(data.total) || 0;
+      const blocked = Number(data.blocked) || 0;
+      const cached = Number(data.cached !== undefined ? data.cached : data.cache_hits) || 0;
+      const forwarded = Number(data.forwarded !== undefined ? data.forwarded : (total - blocked - cached)) || 0;
+      const blockedPct = Number(data.blocked_pct !== undefined ? data.blocked_pct : (total > 0 ? (blocked / total * 100) : 0));
+      const cacheRatio = Number(data.cache_ratio !== undefined ? data.cache_ratio : (data.cache_pct !== undefined ? data.cache_pct : 0));
+      const avgMs = Number(data.avg_ms !== undefined ? data.avg_ms : (data.latency?.forwarded_p50 || 0));
+
+      // 4 cards with count-up animation from real old to real new
+      animateNumber('cardTotalQueries', prevTotal, total, 0, '');
+      animateNumber('cardBlockedPct', prevBlockedPct, blockedPct, 1, '%');
+      animateNumber('cardCachePct', prevCacheRatio, cacheRatio, 1, '%');
+      animateNumber('cardAvgSpeed', prevAvgSpeed, avgMs, 1, ' ms');
+
+      prevTotal = total;
+      prevBlockedPct = blockedPct;
+      prevCacheRatio = cacheRatio;
+      prevAvgSpeed = avgMs;
+
+      document.getElementById('cardForwardedCount').innerText = forwarded.toLocaleString();
+      document.getElementById('cardCachedSub').innerText = cached.toLocaleString();
+      document.getElementById('cardBlockedCount').innerText = blocked.toLocaleString();
+      document.getElementById('cardCacheHits').innerText = cached.toLocaleString();
+      document.getElementById('cardCacheLive').innerText = Number(data.cache?.live || 0).toLocaleString();
+
+      document.getElementById('cardInternalUs').innerText = data.latency?.internal_us !== undefined ? data.latency.internal_us : (data.avg_speed_us || 1.8);
+      document.getElementById('cardBlockedMs').innerText = data.latency?.blocked_ms !== undefined ? data.latency.blocked_ms : 0.1;
+
+      // Latency Distribution Card
+      if (data.latency) {
+        document.getElementById('latInternalUs').innerText = data.latency.internal_us + ' µs';
+        document.getElementById('latBlockedMs').innerText = data.latency.blocked_ms + ' ms';
+        document.getElementById('latFwdP50').innerText = data.latency.forwarded_p50 + ' ms';
+        document.getElementById('latFwdP95').innerText = data.latency.forwarded_p95 + ' ms';
+      }
+
+      // Top 10 Blocked List from real DB data
+      const topList = document.getElementById('topBlockedList');
+      if (data.top_blocked && data.top_blocked.length > 0) {
+        let html = '';
+        data.top_blocked.forEach(([domain, count], idx) => {
+          const badge = getCategoryBadge(domain);
+          html += `
+            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition">
+              <div class="flex items-center gap-3 min-w-0 pr-2">
+                <span class="w-5 text-center text-xs font-mono font-bold ${idx < 3 ? 'text-red-400' : 'text-slate-400'}">${idx + 1}</span>
+                <span class="text-xs font-mono text-slate-200 truncate" title="${domain}">${domain}</span>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                ${badge}
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${Number(count).toLocaleString()}</span>
+              </div>
+            </div>
+          `;
+        });
+        topList.innerHTML = html;
+      } else {
+        topList.innerHTML = `
+          <div class="text-center py-10 text-slate-400 text-xs font-mono">
+            <i class="fa-solid fa-shield-heart text-2xl mb-2 text-emerald-500/50 block"></i>
+            No blocked queries recorded yet.
+          </div>
+        `;
+      }
+
+      // Upstream Resolvers List
+      const upContainer = document.getElementById('upstreamContainer');
+      if (data.upstream && data.upstream.length > 0) {
+        let upHtml = '';
+        data.upstream.forEach(u => {
+          const provider = u.ip === '8.8.8.8' ? 'Google Public DNS' : (u.ip === '1.1.1.1' ? 'Cloudflare DNS' : 'Custom DNS');
+          upHtml += `
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-mono font-bold text-xs">
+                  ${u.ip.slice(0, 3)}
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-2 font-mono">
+                    <span>${u.ip}</span>
+                    <span class="text-[10px] text-slate-400 font-sans font-normal">${provider}</span>
+                  </div>
+                  <div class="text-[10px] text-slate-400 font-mono mt-0.5">
+                    Speed: <strong class="text-emerald-400">${u.avg_ms} ms</strong> | Fails: <strong class="${u.fails > 0 ? 'text-red-400' : 'text-slate-400'}">${u.fails}</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="text-right font-mono">
+                <span class="text-sm font-bold text-slate-200">${Number(u.queries).toLocaleString()}</span>
+                <span class="text-[10px] text-slate-400 block">queries won</span>
+              </div>
+            </div>
+          `;
+        });
+        upContainer.innerHTML = upHtml;
+      }
+
+      // Update 24h Hourly Chart (datasets = [blocked, allowed])
+      if (hourlyChart && hourly.labels) {
+        const sum24 = (hourly.counts || []).reduce((a, b) => a + b, 0);
+        const emptyState = document.getElementById('hourlyEmptyState');
+
+        if (sum24 === 0) {
+          if (emptyState) emptyState.classList.remove('hidden');
+        } else {
+          if (emptyState) emptyState.classList.add('hidden');
+        }
+
+        hourlyChart.data.labels = hourly.labels;
+        // Dataset 0: Blocked, Dataset 1: Allowed
+        hourlyChart.data.datasets[0].data = hourly.blocked || Array(hourly.labels.length).fill(0);
+        hourlyChart.data.datasets[1].data = hourly.allowed || (hourly.counts || []).map((c, i) => Math.max(0, c - (hourly.blocked ? hourly.blocked[i] : 0)));
+        hourlyChart.update('none');
+
+        document.getElementById('chartTotalLabel').innerText = `Last 24 Hours Total: ${sum24.toLocaleString()} queries`;
+      }
+
+    } catch (err) {
+      console.error("Dashboard refresh error:", err);
+    }
+  }
+
+  function startDashboardPolling() {
+    if (dashboardTimer) clearInterval(dashboardTimer);
+    dashboardTimer = setInterval(() => {
+      if (window.autoRefreshEnabled) {
+        refreshData();
+      }
+    }, 2000);
+  }
+
+  // Poll every 2 seconds
+  document.addEventListener('DOMContentLoaded', () => {
+    initHourlyChart();
+    refreshData();
+    startDashboardPolling();
+
+    window.addEventListener('autorefresh-toggle', (e) => {
+      if (e.detail.enabled) {
+        refreshData();
+        startDashboardPolling();
+      } else {
+        if (dashboardTimer) clearInterval(dashboardTimer);
+      }
+    });
+  });
+</script>
+{% endblock %}
+

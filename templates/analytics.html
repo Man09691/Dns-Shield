@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-7xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>DNS Analytics & Trends</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-mono font-medium border border-blue-500/20">
+          Telemetry & Aggregations
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Deep visual insights across 24-hour volume patterns, rule category coverage, and latency buckets.</p>
+    </div>
+
+    <!-- Manual refresh -->
+    <button onclick="loadAnalytics()" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-semibold transition self-start sm:self-auto">
+      <i id="analyticsRefreshIcon" class="fa-solid fa-rotate text-blue-400"></i>
+      <span>Refresh Analytics</span>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       3 TOP METRICS SUMMARY CARDS
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+    <!-- Card 1: Cache Efficiency -->
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between text-xs text-slate-400 mb-3">
+        <span class="font-bold uppercase tracking-wider">Cache Efficiency</span>
+        <i class="fa-solid fa-bolt text-blue-400"></i>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="statCacheRatio" class="text-3xl font-black text-blue-400 font-mono">0.0%</span>
+        <span class="text-xs text-slate-400 font-mono">ratio</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
+        <span>Hits: <strong id="statHits" class="text-white">0</strong></span>
+        <span>Forwarded: <strong id="statMisses" class="text-white">0</strong></span>
+        <span>Live: <strong id="statLive" class="text-slate-300">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 2: Threat Interception -->
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between text-xs text-slate-400 mb-3">
+        <span class="font-bold uppercase tracking-wider">Blocked Ratio</span>
+        <i class="fa-solid fa-shield-halved text-red-400"></i>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="statBlockedPct" class="text-3xl font-black text-red-400 font-mono">0.0%</span>
+        <span class="text-xs text-slate-400 font-mono">of all traffic</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
+        <span>Blocked: <strong id="statBlockedNum" class="text-red-400">0</strong></span>
+        <span>Allowed: <strong id="statAllowedNum" class="text-emerald-400">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Card 3: Upstream Parallel Winner -->
+    <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between text-xs text-slate-400 mb-3">
+        <span class="font-bold uppercase tracking-wider">Fastest Resolver</span>
+        <i class="fa-solid fa-trophy text-amber-400"></i>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span id="statWinnerIp" class="text-3xl font-black text-cyan-400 font-mono">8.8.8.8</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
+        <span>Median Latency: <strong id="statP50" class="text-emerald-400">0.0 ms</strong></span>
+        <span>P95: <strong id="statP95" class="text-amber-400">0.0 ms</strong></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TWO MAIN CHARTS:
+       1. Hourly Bar Chart (Last 24h from query_stats_hourly)
+       2. Threat Category Pie/Doughnut Chart
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+    <!-- Chart 1: Hourly Bar Chart (7 cols) -->
+    <div class="lg:col-span-7 bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <span>24-Hour Traffic Distribution</span>
+          </h2>
+          <p class="text-xs text-slate-400 mt-0.5">Stacked hourly breakdown from <code class="text-cyan-400 font-mono text-[11px]">query_stats_hourly</code></p>
+        </div>
+        <div class="flex items-center gap-3 text-xs font-mono">
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-emerald-500"></span>Allowed</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded bg-red-500"></span>Blocked</span>
+        </div>
+      </div>
+
+      <div class="h-80 w-full relative">
+        <canvas id="hourlyBarChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Chart 2: Category Pie Chart (5 cols) -->
+    <div class="lg:col-span-5 bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-base font-bold text-white">Rule Distribution</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Breakdown by protection category across 235k domains</p>
+        </div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+          Categories
+        </span>
+      </div>
+
+      <div class="h-64 w-full relative flex items-center justify-center">
+        <canvas id="categoryPieChart"></canvas>
+      </div>
+
+      <!-- Category Legend Grid -->
+      <div id="categoryLegend" class="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs font-mono">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BOTTOM: Query Record Types Breakdown (A, AAAA, etc.)
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+    <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
+      <i class="fa-solid fa-tags text-cyan-400"></i>
+      <span>DNS Record Types (QTYPE) Breakdown</span>
+    </h3>
+
+    <div id="qtypeGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 font-mono text-center">
+      <!-- Rendered via JS -->
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let barChart = null;
+  let pieChart = null;
+
+  async function loadAnalytics() {
+    const icon = document.getElementById('analyticsRefreshIcon');
+    if (icon) icon.classList.add('fa-spin');
+
+    try {
+      const [statsRes, hourlyRes, catRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/hourly?hours=24'),
+        fetch('/api/categories')
+      ]);
+
+      const stats = await statsRes.json();
+      const hourly = await hourlyRes.json();
+      const catData = await catRes.json();
+
+      // Top Metric Cards
+      const total = stats.total || 0;
+      const blocked = stats.blocked || 0;
+      const cached = stats.cached || stats.cache_hits || 0;
+      const forwarded = stats.forwarded || (total - blocked - cached);
+      const cacheRatio = stats.cache && stats.cache.ratio ? (stats.cache.ratio * 100).toFixed(1) : (stats.cache_pct || "0.0");
+      const blockedPct = stats.blocked_pct || (total > 0 ? ((blocked / total) * 100).toFixed(1) : "0.0");
+
+      document.getElementById('statCacheRatio').innerText = cacheRatio + '%';
+      document.getElementById('statHits').innerText = Number(cached).toLocaleString();
+      document.getElementById('statMisses').innerText = Number(forwarded).toLocaleString();
+      document.getElementById('statLive').innerText = Number(stats.cache ? stats.cache.live : 0).toLocaleString();
+
+      document.getElementById('statBlockedPct').innerText = blockedPct + '%';
+      document.getElementById('statBlockedNum').innerText = Number(blocked).toLocaleString();
+      document.getElementById('statAllowedNum').innerText = Number(total - blocked).toLocaleString();
+
+      if (stats.latency) {
+        document.getElementById('statP50').innerText = stats.latency.forwarded_p50 + ' ms';
+        document.getElementById('statP95').innerText = stats.latency.forwarded_p95 + ' ms';
+      }
+
+      if (stats.upstream && stats.upstream.length > 0) {
+        const topWinner = stats.upstream[0];
+        document.getElementById('statWinnerIp').innerText = topWinner.ip + ` (${topWinner.queries})`;
+      }
+
+      // Render Hourly Bar Chart
+      renderBarChart(hourly);
+
+      // Render Category Pie Chart from /api/stats category breakdown (ads, trackers, malware, custom)
+      const categories = stats.categories || { ads: 0, trackers: 0, malware: 0, custom: 0 };
+      if ((!stats.categories || Object.values(stats.categories).reduce((a,b)=>a+b, 0) === 0) && stats.top_blocked && stats.top_blocked.length > 0) {
+        stats.top_blocked.forEach(([domain, count]) => {
+          const d = domain.toLowerCase();
+          if (d.includes('facebook') || d.includes('track') || d.includes('analytics')) categories.trackers += count;
+          else if (d.includes('malware') || d.includes('phish')) categories.malware += count;
+          else if (d.includes('doubleclick') || d.includes('custom')) categories.custom += count;
+          else categories.ads += count;
+        });
+      }
+      renderPieChart(categories);
+
+      // Render QType Grid
+      renderQtypeGrid(stats.qtype || {});
+
+    } catch (err) {
+      console.error("Failed to load analytics:", err);
+    } finally {
+      if (icon) icon.classList.remove('fa-spin');
+    }
+  }
+
+  function renderBarChart(hourly) {
+    const ctx = document.getElementById('hourlyBarChart').getContext('2d');
+    if (barChart) barChart.destroy();
+
+    const labels = hourly.labels || [];
+    const allowed = hourly.allowed || [];
+    const blocked = hourly.blocked || [];
+
+    barChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Allowed',
+            data: allowed,
+            backgroundColor: '#10b981',
+            borderRadius: 4,
+            stack: 'Stack 0',
+          },
+          {
+            label: 'Blocked',
+            data: blocked,
+            backgroundColor: '#ef4444',
+            borderRadius: 4,
+            stack: 'Stack 0',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleFont: { family: 'monospace' },
+            bodyFont: { family: 'monospace' }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { color: '#64748b', font: { family: 'monospace', size: 10 } }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            grid: { color: 'rgba(51, 65, 85, 0.2)' },
+            ticks: { color: '#64748b', font: { family: 'monospace', size: 10 }, precision: 0 }
+          }
+        }
+      }
+    });
+  }
+
+  function renderPieChart(cats) {
+    const ctx = document.getElementById('categoryPieChart').getContext('2d');
+    if (pieChart) pieChart.destroy();
+
+    const labels = Object.keys(cats).map(c => c.charAt(0).toUpperCase() + c.slice(1));
+    const data = Object.values(cats);
+    const colors = ['#f59e0b', '#f43f5e', '#a855f7', '#3b82f6', '#06b6d4'];
+
+    pieChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: colors.slice(0, labels.length),
+          borderColor: '#0f172a',
+          borderWidth: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f172a',
+            borderColor: '#334155',
+            borderWidth: 1,
+            titleFont: { family: 'monospace' },
+            bodyFont: { family: 'monospace' }
+          }
+        }
+      }
+    });
+
+    // Render legend
+    const leg = document.getElementById('categoryLegend');
+    let lHtml = '';
+    labels.forEach((l, i) => {
+      const cnt = data[i] || 0;
+      lHtml += `
+        <div class="flex items-center justify-between p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colors[i]}"></span>
+            <span class="text-slate-300 font-bold">${l}</span>
+          </div>
+          <span class="text-slate-400 font-mono">${Number(cnt).toLocaleString()}</span>
+        </div>
+      `;
+    });
+    leg.innerHTML = lHtml;
+  }
+
+  function renderQtypeGrid(qtypes) {
+    const grid = document.getElementById('qtypeGrid');
+    if (Object.keys(qtypes).length === 0) {
+      grid.innerHTML = '<div class="col-span-full text-slate-400 text-xs py-4">No query type records yet.</div>';
+      return;
+    }
+    let html = '';
+    for (const [qt, count] of Object.entries(qtypes)) {
+      html += `
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3">
+          <div class="text-[10px] text-slate-400 font-bold uppercase">${qt}</div>
+          <div class="text-lg font-black text-white font-mono mt-0.5">${Number(count).toLocaleString()}</div>
+        </div>
+      `;
+    }
+    grid.innerHTML = html;
+  }
+
+  document.addEventListener('DOMContentLoaded', loadAnalytics);
+</script>
+{% endblock %}
+

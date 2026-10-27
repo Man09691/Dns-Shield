@@ -4,21 +4,14 @@ dns/forwarder.py  —  Upstream DNS Forwarder
 Computer Networks concept: DNS forwarding / recursive resolution.
 
 When our server doesn't know the answer (not blocked, not cached),
-it forwards the query to an upstream DNS server (like Google 8.8.8.8)
-and relays the response back to the client.
+it forwards the query to an upstream DNS server (like Google 8.8.8.8
+or Cloudflare 1.1.1.1) and relays the response back to the client.
 
-This module handles:
-  - Sending the query to the primary upstream server
-  - Falling back to a secondary server on timeout
-  - Configurable timeout
-"""
-"""
-dns/forwarder.py  —  Perfect Upstream Forwarder
-
-1. Parallel race: 8.8.8.8 aur 1.1.1.1 dono ko ek saath puchta hai, jo pehle jawab dega wahi lega
-2. EWMA latency tracker: kaunsa fast hai yaad rakhega
-3. Auto blacklist: 3 baar fail hua toh 60 sec ke liye band
-4. Zero blocking: thread + queue se fastest win
+Features:
+  - Parallel race between 8.8.8.8 and 1.1.1.1: first valid response wins
+  - Pure standard library socket & threading (no dnspython clash with local dns/)
+  - Accurate upstream winner tracking (queries, avg_ms, fails)
+  - Returns DNSForwardResponse (bytes subclass with .upstream, .winner, .elapsed_ms)
 """
 
 import socket
@@ -26,100 +19,199 @@ import logging
 import threading
 import time
 import queue
+import struct
 
 logger = logging.getLogger("dns.forwarder")
 
-# Thread-safe stats
 _lock = threading.Lock()
-_latency = {}  # ip -> avg latency ms
-_fail_count = {}
-_blacklist_until = {}
+_queries = {"8.8.8.8": 0, "1.1.1.1": 0}
+_total_ms = {"8.8.8.8": 0.0, "1.1.1.1": 0.0}
+_fail_count = {"8.8.8.8": 0, "1.1.1.1": 0}
+_last_winner = None
 
-def _is_blacklisted(ip):
+
+class DNSForwardResponse(bytes):
+    """
+    Subclass of bytes that preserves the raw DNS packet while attaching
+    metadata about which upstream won and how long it took.
+    """
+    def __new__(cls, data, upstream="8.8.8.8", elapsed=0.0):
+        obj = super().__new__(cls, data)
+        obj.upstream = str(upstream)
+        obj.winner = str(upstream)
+        obj.elapsed_ms = float(elapsed)
+        return obj
+
+
+def get_last_winner():
     with _lock:
-        until = _blacklist_until.get(ip, 0)
-        return time.time() < until
+        return _last_winner
 
-def _record_success(ip, elapsed):
+
+def get_upstream_stats():
+    """
+    Return upstream metrics grouped by resolver IP:
+    [{ip: "8.8.8.8", queries: ..., avg_ms: ..., fails: ...}, ...]
+    """
     with _lock:
-        old = _latency.get(ip, elapsed)
-        # EWMA 70% old + 30% new
-        _latency[ip] = old * 0.7 + elapsed * 0.3
-        _fail_count[ip] = 0
+        result = []
+        for ip in ["8.8.8.8", "1.1.1.1"]:
+            q = _queries.get(ip, 0)
+            tot = _total_ms.get(ip, 0.0)
+            avg = round(tot / q, 2) if q > 0 else 0.0
+            fails = _fail_count.get(ip, 0)
+            result.append({
+                "ip": ip,
+                "queries": q,
+                "avg_ms": avg,
+                "fails": fails,
+                "count": q
+            })
+        return result
 
-def _record_failure(ip):
+
+def reset_stats():
+    """Reset all upstream metrics."""
+    global _last_winner
     with _lock:
-        _fail_count[ip] = _fail_count.get(ip, 0) + 1
-        if _fail_count[ip] >= 3:
-            _blacklist_until[ip] = time.time() + 60
-            logger.warning(f"{ip} blacklisted for 60s after 3 fails")
+        for k in list(_queries.keys()):
+            _queries[k] = 0
+            _total_ms[k] = 0.0
+            _fail_count[k] = 0
+        _last_winner = None
 
-def _worker(data, server_ip, port, timeout, out_q):
+
+def _worker_udp(data, server_ip, port, timeout, out_q):
+    sock = None
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(timeout)
-        start = time.monotonic()
+        t0 = time.perf_counter()
         sock.sendto(data, (server_ip, port))
-        response, _ = sock.recvfrom(4096)
-        elapsed = time.monotonic() - start
-        sock.close()
-        _record_success(server_ip, elapsed)
-        # sirf pehla success queue me jayega
+        resp, _ = sock.recvfrom(4096)
+        elapsed = (time.perf_counter() - t0) * 1000.0
+        with _lock:
+            _queries[server_ip] = _queries.get(server_ip, 0) + 1
+            _total_ms[server_ip] = _total_ms.get(server_ip, 0.0) + elapsed
         try:
-            out_q.put_nowait((response, elapsed, server_ip))
+            out_q.put_nowait((resp, server_ip, elapsed))
         except queue.Full:
             pass
     except Exception as e:
-        _record_failure(server_ip)
-        logger.debug(f"{server_ip} failed: {e}")
+        with _lock:
+            _fail_count[server_ip] = _fail_count.get(server_ip, 0) + 1
+        logger.debug(f"Upstream UDP {server_ip}:{port} failed: {e}")
     finally:
-        try:
-            sock.close()
-        except:
-            pass
+        if sock:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+
+def _worker_tcp(data, server_ip, port, timeout):
+    sock = None
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        t0 = time.perf_counter()
+        sock.connect((server_ip, port))
+        length = struct.pack(">H", len(data))
+        sock.sendall(length + data)
+        len_bytes = sock.recv(2)
+        if len(len_bytes) < 2:
+            return None, 0.0
+        resp_len = struct.unpack(">H", len_bytes)[0]
+        chunks = []
+        recvd = 0
+        while recvd < resp_len:
+            chunk = sock.recv(min(4096, resp_len - recvd))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            recvd += len(chunk)
+        elapsed = (time.perf_counter() - t0) * 1000.0
+        return b"".join(chunks), elapsed
+    except Exception as e:
+        logger.debug(f"Upstream TCP {server_ip}:{port} failed: {e}")
+        return None, 0.0
+    finally:
+        if sock:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
 
 def forward_query(data, upstream_dns="8.8.8.8", upstream_port=53,
-                  fallback_dns="1.1.1.1", timeout=3, extra_upstreams=None):
+                  fallback_dns="1.1.1.1", timeout=3, extra_upstreams=None,
+                  return_winner=False):
     """
-    Same signature as old, but ab parallel hai.
+    Forward query to upstream DNS servers in parallel race.
+    First valid response wins. Returns DNSForwardResponse or None.
     """
+    global _last_winner
+
     upstreams = [upstream_dns, fallback_dns]
     if extra_upstreams:
         upstreams.extend(extra_upstreams)
-    
-    # dedup
+
+    # Deduplicate while preserving order
     seen = set()
     uniq = []
     for ip in upstreams:
-        if ip not in seen:
-            uniq.append(ip)
+        if ip and ip not in seen:
             seen.add(ip)
+            seen.add(ip)
+            uniq.append(ip)
     upstreams = uniq
 
-    # blacklist walo ko hatao, par agar sab blacklist hai toh force try
-    active = [ip for ip in upstreams if not _is_blacklisted(ip)]
-    if not active:
-        active = upstreams
-
-    q = queue.Queue(maxsize=1)
+    out_q = queue.Queue(maxsize=1)
     threads = []
-    for ip in active:
-        t = threading.Thread(target=_worker, args=(data, ip, upstream_port, timeout, q), daemon=True)
+    # Set socket timeout slightly lower than total timeout so threads exit cleanly
+    sock_timeout = max(1.0, float(timeout) - 0.5)
+
+    for ip in upstreams:
+        t = threading.Thread(
+            target=_worker_udp,
+            args=(data, ip, upstream_port, sock_timeout, out_q),
+            daemon=True
+        )
         t.start()
         threads.append(t)
 
     try:
-        response, elapsed, winner = q.get(timeout=timeout)
-        logger.info(f"Forwarder winner: {winner} in {elapsed*1000:.1f}ms | active={active}")
-        return response
+        resp, winner, elapsed = out_q.get(timeout=timeout)
+        with _lock:
+            _last_winner = winner
+        logger.info(f"Forwarder winner: {winner} in {elapsed:.1f}ms | active={upstreams}")
+        if return_winner:
+            return resp, winner
+        return DNSForwardResponse(resp, upstream=winner, elapsed=elapsed)
     except queue.Empty:
-        logger.error(f"All upstreams timed out: {active}")
+        # UDP timed out; attempt quick TCP fallback on primary
+        for ip in upstreams:
+            tcp_resp, tcp_elapsed = _worker_tcp(data, ip, upstream_port, timeout=1.5)
+            if tcp_resp:
+                with _lock:
+                    _queries[ip] = _queries.get(ip, 0) + 1
+                    _total_ms[ip] = _total_ms.get(ip, 0.0) + tcp_elapsed
+                    _last_winner = ip
+                logger.info(f"Forwarder TCP winner: {ip} in {tcp_elapsed:.1f}ms")
+                if return_winner:
+                    return tcp_resp, ip
+                return DNSForwardResponse(tcp_resp, upstream=ip, elapsed=tcp_elapsed)
+
+        logger.warning(f"All upstreams timed out: {upstreams}")
+        if return_winner:
+            return None, "TIMEOUT"
         return None
 
-# purana function bhi rakha for backward compat
+
 def _send_and_receive(data, server_ip, port, timeout):
+    """Legacy helper for single-server query."""
     q = queue.Queue(maxsize=1)
-    _worker(data, server_ip, port, timeout, q)
+    _worker_udp(data, server_ip, port, timeout, q)
     try:
         resp, _, _ = q.get_nowait()
         return resp

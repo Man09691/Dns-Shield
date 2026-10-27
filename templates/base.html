@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}DNS Shield — Ad & Tracker Blocking DNS{% endblock %}</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            sidebar: '#0f172a',
+            canvas: '#020617',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Font Awesome 6.4 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+  <!-- Chart.js 4.4 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Custom subtle scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    
+    .glow-blue { box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.25); }
+    .glow-red { box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.25); }
+    .glow-green { box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.25); }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- ══════════════════════════════════════════════════════════════
+       LEFT FIXED SIDEBAR (260px wide, #0f172a)
+  ════════════════════════════════════════════════════════════════ -->
+  <aside class="fixed left-0 top-0 bottom-0 w-[260px] bg-[#0f172a] border-r border-slate-800 z-30 flex flex-col justify-between">
+    
+    <!-- Top Brand & Navigation -->
+    <div>
+      <!-- Brand Logo -->
+      <div class="h-16 flex items-center justify-between px-6 border-b border-slate-800/80">
+        <a href="/" class="flex items-center gap-3 group">
+          <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-500 group-hover:scale-105 transition">
+            <i class="fa-solid fa-shield-halved text-lg"></i>
+          </div>
+          <div>
+            <div class="font-black text-sm tracking-widest text-white flex items-center gap-2">
+              DNS SHIELD
+            </div>
+            <div class="text-[10px] font-mono text-slate-400">NETWORK DEFENDER</div>
+          </div>
+        </a>
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+          5053
+        </span>
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="p-3 space-y-1">
+        <div class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Main Menu</div>
+
+        <!-- Dashboard -->
+        <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'dashboard' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-gauge-high w-5 text-center text-base"></i>
+          <span>Dashboard</span>
+        </a>
+
+        <!-- Query Logs -->
+        <a href="/logs" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'logs' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-list-check w-5 text-center text-base"></i>
+          <span>Query Logs</span>
+        </a>
+
+        <!-- Domain Lookup -->
+        <a href="/lookup" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'lookup' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-magnifying-glass w-5 text-center text-base"></i>
+          <span>Domain Lookup</span>
+        </a>
+
+        <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Filtering & Rules</div>
+
+        <!-- Blocklists -->
+        <a href="/blocklists" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'blocklists' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-shield-virus w-5 text-center text-base"></i>
+          <span>Blocklists</span>
+          <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">235k</span>
+        </a>
+
+        <!-- Allowlist -->
+        <a href="/allowlist" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'allowlist' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-circle-check w-5 text-center text-base"></i>
+          <span>Allowlist</span>
+        </a>
+
+        <!-- Analytics -->
+        <a href="/analytics" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'analytics' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-chart-line w-5 text-center text-base"></i>
+          <span>Analytics</span>
+        </a>
+
+        <div class="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">System</div>
+
+        <!-- Settings -->
+        <a href="/settings" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'settings' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-gear w-5 text-center text-base"></i>
+          <span>Settings</span>
+        </a>
+      </nav>
+    </div>
+
+    <!-- Sidebar Footer (System Status Info) -->
+    <div class="p-4 border-t border-slate-800/80 bg-slate-900/50">
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            Rules Active
+          </span>
+          <span class="font-mono font-bold text-slate-200">235,974</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-1.5 rounded-full" style="width: 100%"></div>
+        </div>
+        <div class="flex justify-between items-center text-[10px] text-slate-400 mt-2 font-mono">
+          <span>Upstream: 8.8.8.8 / 1.1.1.1</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TOP BAR (Left live dot + Right Pause toggle + Clear logs)
+  ════════════════════════════════════════════════════════════════ -->
+  <header class="fixed left-[260px] right-0 top-0 h-16 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 z-20 flex items-center justify-between px-8">
+    
+    <!-- Left: Live indicator + Port badge -->
+    <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+        <span class="relative flex h-2 w-2">
+          <span id="livePulse" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span id="liveDot" class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span id="liveText" class="font-semibold tracking-wide uppercase text-[11px]">Live</span>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+        <span class="text-slate-400 font-mono">Server Port:</span>
+        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-cyan-400 border border-slate-700 text-xs font-semibold">UDP 5053</span>
+        <span class="text-slate-400">|</span>
+        <span class="text-slate-400 font-mono">Dashboard:</span>
+        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-slate-300 border border-slate-700 text-xs">8080</span>
+      </div>
+    </div>
+
+    <!-- Right: Auto-refresh Toggle + Clear Logs Button -->
+    <div class="flex items-center gap-3">
+      <!-- Auto-refresh Pause/Resume Toggle -->
+      <button id="pauseBtn" onclick="toggleAutoRefresh()"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition shadow-sm"
+        title="Toggle auto refresh polling">
+        <i id="pauseIcon" class="fa-solid fa-pause text-amber-400"></i>
+        <span id="pauseLabel">Auto Refresh: <strong class="text-emerald-400">ON</strong></span>
+      </button>
+
+      <!-- Clear Logs Button (Red) -->
+      <button onclick="clearLogsDirect()"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600/90 hover:bg-red-500 text-white transition shadow-sm shadow-red-950">
+        <i class="fa-solid fa-trash-can"></i>
+        <span>Clear Logs</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MAIN CONTENT CONTAINER
+  ════════════════════════════════════════════════════════════════ -->
+  <main class="ml-[260px] pt-20 p-8 min-h-screen bg-slate-950 text-slate-100">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       CONFIRMATION MODAL (Clear Logs)
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="clearModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+      <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center text-xl mb-4">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+      </div>
+      <h3 class="text-lg font-bold text-white mb-2">Clear All Query Logs?</h3>
+      <p class="text-sm text-slate-400 mb-6 leading-relaxed">
+        This will permanently delete all records from <code class="text-cyan-400 font-mono text-xs">queries.db</code> and run a SQLite <code class="text-cyan-400 font-mono text-xs">VACUUM</code> to compact the database. Blocklist rules will remain intact.
+      </p>
+      <div class="flex items-center justify-end gap-3">
+        <button onclick="closeClearModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+          Cancel
+        </button>
+        <button onclick="executeClearLogs()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-500 text-white transition shadow-lg shadow-red-900/30">
+          Yes, Wipe Logs Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TOAST NOTIFICATION CONTAINER
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="toastContainer" class="fixed bottom-6 right-6 z-50 space-y-2 pointer-events-none"></div>
+
+  <!-- Global Javascript -->
+  <script>
+    // Global Auto-refresh state
+    window.autoRefreshEnabled = (localStorage.getItem('dns_shield_autorefresh') !== 'false');
+
+    function updatePauseUI() {
+      const btn = document.getElementById('pauseBtn');
+      const icon = document.getElementById('pauseIcon');
+      const label = document.getElementById('pauseLabel');
+      const dot = document.getElementById('liveDot');
+      const pulse = document.getElementById('livePulse');
+      const liveText = document.getElementById('liveText');
+
+      if (!btn) return;
+
+      if (window.autoRefreshEnabled) {
+        icon.className = "fa-solid fa-pause text-amber-400";
+        label.innerHTML = 'Auto Refresh: <strong class="text-emerald-400">ON</strong>';
+        if (dot) dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+        if (pulse) pulse.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75";
+        if (liveText) {
+          liveText.innerText = "Live";
+          liveText.className = "font-semibold tracking-wide uppercase text-[11px] text-emerald-400";
+        }
+      } else {
+        icon.className = "fa-solid fa-play text-emerald-400";
+        label.innerHTML = 'Auto Refresh: <strong class="text-slate-400">PAUSED</strong>';
+        if (dot) dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-slate-500";
+        if (pulse) pulse.className = "hidden";
+        if (liveText) {
+          liveText.innerText = "Paused";
+          liveText.className = "font-semibold tracking-wide uppercase text-[11px] text-slate-400";
+        }
+      }
+    }
+
+    function toggleAutoRefresh() {
+      window.autoRefreshEnabled = !window.autoRefreshEnabled;
+      localStorage.setItem('dns_shield_autorefresh', window.autoRefreshEnabled);
+      updatePauseUI();
+      window.dispatchEvent(new CustomEvent('autorefresh-toggle', { detail: { enabled: window.autoRefreshEnabled } }));
+      showToast(window.autoRefreshEnabled ? "Auto-refresh resumed" : "Auto-refresh paused", "info");
+    }
+
+    async function clearLogsDirect() {
+      if (confirm("Delete all logs?")) {
+        try {
+          const res = await fetch('/api/clear', { method: 'POST' });
+          const data = await res.json();
+          showToast(data.message || "All logs cleared", "success");
+          if (typeof refreshData === 'function') refreshData();
+          if (typeof fetchLogs === 'function') fetchLogs();
+          if (typeof loadAnalytics === 'function') loadAnalytics();
+        } catch (err) {
+          showToast("Error clearing logs: " + err, "error");
+        }
+      }
+    }
+
+    // Modal helpers
+    function confirmClearLogs() {
+      document.getElementById('clearModal').classList.remove('hidden');
+    }
+
+    function closeClearModal() {
+      document.getElementById('clearModal').classList.add('hidden');
+    }
+
+    async function executeClearLogs() {
+      closeClearModal();
+      try {
+        const res = await fetch('/api/clear', { method: 'POST' });
+        const data = await res.json();
+        showToast("All query logs wiped and database compacted", "success");
+        if (typeof refreshData === 'function') {
+          refreshData();
+        } else {
+          setTimeout(() => location.reload(), 600);
+        }
+      } catch (err) {
+        showToast("Failed to clear logs: " + err, "error");
+      }
+    }
+
+    // Toast helper
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let border = 'border-slate-700';
+      let icon = 'fa-info-circle text-blue-400';
+      if (type === 'success') {
+        border = 'border-emerald-500/40';
+        icon = 'fa-check-circle text-emerald-400';
+      } else if (type === 'error') {
+        border = 'border-red-500/40';
+        icon = 'fa-circle-xmark text-red-400';
+      }
+
+      toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 border ${border} text-slate-100 text-xs shadow-2xl transition transform duration-300 translate-y-2 opacity-0 pointer-events-auto max-w-sm`;
+      toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${message}</span>`;
+      
+      container.appendChild(toast);
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // Initialize UI state
+    document.addEventListener('DOMContentLoaded', () => {
+      updatePauseUI();
+    });
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+

@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Blocklists — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-6xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>Active Blocklists</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-mono font-bold border border-cyan-500/20">
+          235,974 Total Rules
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Multi-tier categorization filters compiled from OISD, community feeds, and local overrides.</p>
+    </div>
+
+    <!-- Quick stats badge -->
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-slate-400 font-mono bg-[#0f172a] px-3 py-1.5 rounded-xl border border-slate-800">
+        Auto-update: <strong class="text-emerald-400">Every 24h (OISD)</strong>
+      </span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       4 BLOCKLIST CARDS
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="blocklistsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="col-span-full text-center py-12 text-slate-400 font-mono text-xs">
+      <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-blue-400 block"></i>
+      Loading blocklist files...
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       BLOCKLIST ARCHITECTURE & INFO CARD
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+    <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
+      <i class="fa-solid fa-layer-group text-blue-400"></i>
+      <span>Fast Suffix Tree Matching Architecture</span>
+    </h3>
+    <p class="text-xs text-slate-400 leading-relaxed max-w-3xl">
+      DNS Shield uses an optimized dictionary-based reverse suffix walker (<code class="text-cyan-400 font-mono">O(1)</code> label lookup) instead of regex or linear iteration. For a query like <code class="text-slate-300 font-mono">ad.doubleclick.net</code>, it checks <code class="text-slate-300 font-mono">ad.doubleclick.net</code> &rarr; <code class="text-slate-300 font-mono">doubleclick.net</code> &rarr; <code class="text-slate-300 font-mono">net</code> in under 2 microseconds.
+    </p>
+
+    <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center gap-6 text-xs font-mono text-slate-400">
+      <div>Storage Directory: <strong class="text-slate-300">blocklists/</strong></div>
+      <div>Blocking Mode: <strong class="text-cyan-400">zero_ip (0.0.0.0 / ::)</strong></div>
+      <div>Total Unique Domains: <strong class="text-emerald-400">235,974</strong></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  async function loadBlocklists() {
+    try {
+      const res = await fetch('/api/blocklists');
+      const data = await res.json();
+
+      const grid = document.getElementById('blocklistsGrid');
+      let html = '';
+
+      const colorMap = {
+        amber: {
+          border: 'border-amber-500/20 hover:border-amber-500/40',
+          badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+          icon: 'text-amber-400 bg-amber-500/10',
+          iconName: 'fa-rectangle-ad'
+        },
+        rose: {
+          border: 'border-rose-500/20 hover:border-rose-500/40',
+          badge: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+          icon: 'text-rose-400 bg-rose-500/10',
+          iconName: 'fa-user-secret'
+        },
+        purple: {
+          border: 'border-purple-500/20 hover:border-purple-500/40',
+          badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+          icon: 'text-purple-400 bg-purple-500/10',
+          iconName: 'fa-virus-covid'
+        },
+        blue: {
+          border: 'border-blue-500/20 hover:border-blue-500/40',
+          badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+          icon: 'text-blue-400 bg-blue-500/10',
+          iconName: 'fa-filter'
+        }
+      };
+
+      data.blocklists.forEach(b => {
+        const theme = colorMap[b.color] || colorMap.blue;
+        html += `
+          <div class="bg-[#0f172a] border ${theme.border} rounded-3xl p-6 shadow-sm transition">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl ${theme.icon} flex items-center justify-center text-xl shrink-0">
+                  <i class="fa-solid ${theme.iconName}"></i>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-white">${b.title}</h3>
+                    <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded ${theme.badge} border">
+                      ${b.badge}
+                    </span>
+                  </div>
+                  <span class="text-xs text-slate-400 font-mono">${b.name}</span>
+                </div>
+              </div>
+
+              <!-- Toggle switch -->
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" ${b.enabled ? 'checked' : ''} onchange="toggleBlocklist('${b.name}', this)" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+
+            <!-- Stats grid -->
+            <div class="mt-6 pt-5 border-t border-slate-800/80 grid grid-cols-3 gap-2 font-mono text-center">
+              <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/50">
+                <span class="text-[10px] text-slate-400 block">RULES</span>
+                <span class="text-base font-black text-white">${Number(b.count).toLocaleString()}</span>
+              </div>
+              <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/50">
+                <span class="text-[10px] text-slate-400 block">FILE SIZE</span>
+                <span class="text-xs font-bold text-slate-300">${b.size_str}</span>
+              </div>
+              <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/50">
+                <span class="text-[10px] text-slate-400 block">STATUS</span>
+                <span class="text-xs font-bold ${b.enabled ? 'text-emerald-400' : 'text-slate-400'}">
+                  ${b.enabled ? 'ACTIVE' : 'DISABLED'}
+                </span>
+              </div>
+            </div>
+
+            <!-- File mtime -->
+            <div class="mt-4 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span>Last Modified: <strong class="text-slate-300">${b.last_updated}</strong></span>
+              <span class="text-slate-400">Auto-synced</span>
+            </div>
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+
+    } catch (err) {
+      console.error("Failed to load blocklists:", err);
+      document.getElementById('blocklistsGrid').innerHTML = `
+        <div class="col-span-full text-center py-12 text-red-400 font-mono text-xs">
+          Error loading blocklist metadata.
+        </div>
+      `;
+    }
+  }
+
+  async function toggleBlocklist(name, checkbox) {
+    try {
+      const res = await fetch('/api/blocklists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name, enabled: checkbox.checked })
+      });
+      const data = await res.json();
+      showToast(`${name} is now ${data.enabled ? 'enabled' : 'disabled'}`, "success");
+      loadBlocklists();
+    } catch (e) {
+      showToast("Error toggling list: " + e, "error");
+      checkbox.checked = !checkbox.checked;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadBlocklists);
+</script>
+{% endblock %}
+

@@ -1,0 +1,58 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ──
+venv/
+.venv/
+env/
+ENV/
+
+# ── Database & logs (runtime artifacts) ──
+queries.db
+queries.db-shm
+queries.db-wal
+dns_server.log
+dns_server.log.*
+
+# ── Blocklists (large downloaded files) ──
+blocklists/*.txt
+blocklists/*.hosts
+blocklists/*.gz
+# Keep the repo's own small blocklist
+!blocklist.txt
+
+# ── OS & Editor ──
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# ── Secrets / Local config overrides ──
+config.local.json
+.env
+*.env
+
+# ── Test artifacts / coverage ──
+.coverage
+htmlcov/
+.pytest_cache/
+*.log
+
+# ── Backup / temp files ──
+*.bak
+*.tmp
+scratch/
+

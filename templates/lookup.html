@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Domain Lookup — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-8">
+
+  <!-- Header -->
+  <div class="text-center space-y-2">
+    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-mono font-medium">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <span>Fast O(1) Suffix Tree Inspector</span>
+    </div>
+    <h1 class="text-3xl font-black text-white tracking-tight">Domain Blocklist Inspector</h1>
+    <p class="text-sm text-slate-400 max-w-lg mx-auto">
+      Instantly test whether a domain or URL will be blocked by DNS Shield (235,974 active rules across ads, trackers, malware, and custom lists).
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SEARCH BAR
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-3 shadow-xl">
+    <form id="lookupForm" onsubmit="event.preventDefault(); checkDomain();" class="flex items-center gap-2">
+      <div class="relative flex-1">
+        <i class="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <input type="text" id="domainInput" placeholder="Enter domain or URL (e.g. facebook.com, https://hdhub4u.fast/)"
+          autocomplete="off" spellcheck="false"
+          class="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-11 pr-4 py-3 text-sm text-white placeholder-slate-400 font-mono outline-none focus:border-blue-500 transition shadow-inner" />
+      </div>
+      <button type="submit" id="btnCheck"
+        class="px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition shadow-lg shadow-blue-900/30 flex items-center gap-2 shrink-0">
+        <i class="fa-solid fa-bolt"></i>
+        <span>Check</span>
+      </button>
+    </form>
+
+    <!-- Quick test suggestions pills -->
+    <div class="mt-3 px-2 flex items-center gap-2 flex-wrap text-[11px] text-slate-400 font-mono">
+      <span>Quick try:</span>
+      <button type="button" onclick="quickFill('facebook.com')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700/80 transition">facebook.com</button>
+      <button type="button" onclick="quickFill('google.com')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700/80 transition">google.com</button>
+      <button type="button" onclick="quickFill('doubleclick.net')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-300 border border-slate-700/80 transition">doubleclick.net</button>
+      <button type="button" onclick="quickFill('hdhub4u.com')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700/80 transition">hdhub4u.com</button>
+      <button type="button" onclick="quickFill('ads.example.com')" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700/80 transition">ads.example.com</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       RESULT CARD (Dynamic)
+  ════════════════════════════════════════════════════════════════ -->
+  <div id="resultCard" class="hidden transition-all duration-300">
+    <!-- Rendered via JS -->
+  </div>
+
+  <!-- Initial Placeholder Card -->
+  <div id="placeholderCard" class="bg-[#0f172a]/60 border border-dashed border-slate-800 rounded-3xl p-12 text-center text-slate-400">
+    <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 flex items-center justify-center text-2xl mx-auto mb-4">
+      <i class="fa-solid fa-shield-halved"></i>
+    </div>
+    <div class="text-sm font-semibold text-slate-300">Enter a domain name to inspect</div>
+    <div class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+      DNS Shield will analyze the domain hierarchy against 235,974 rules and indicate the exact category and rule file.
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let currentInspectedDomain = "";
+
+  function quickFill(domain) {
+    document.getElementById('domainInput').value = domain;
+    checkDomain();
+  }
+
+  async function checkDomain() {
+    const input = document.getElementById('domainInput').value.trim();
+    if (!input) return;
+
+    // Normalize domain
+    const clean = input.replace('https://', '').replace('http://', '').split('/')[0].trim();
+    currentInspectedDomain = clean;
+
+    const btn = document.getElementById('btnCheck');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+
+    try {
+      const res = await fetch(`/api/check?domain=${encodeURIComponent(clean)}`);
+      const data = await res.json();
+
+      document.getElementById('placeholderCard').classList.add('hidden');
+      const card = document.getElementById('resultCard');
+      card.classList.remove('hidden');
+
+      if (data.blocked) {
+        // BLOCKED RESULT
+        const cat = data.category || "threat";
+        const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+        const sourceLabel = data.source || "blocklists";
+
+        card.innerHTML = `
+          <div class="bg-gradient-to-br from-red-950/40 to-slate-900 border-2 border-red-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden glow-red">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center text-3xl shrink-0">
+                  <i class="fa-solid fa-ban"></i>
+                </div>
+                <div>
+                  <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-wider uppercase bg-red-500/20 text-red-400 border border-red-500/30">
+                    BLOCKED [Ad / Tracker Ruk Gaya]
+                  </span>
+                  <h2 class="text-2xl font-black text-white font-mono mt-1 break-all">${data.domain}</h2>
+                  <p class="text-xs text-red-300/80 font-mono mt-1">
+                    Matched Rule in: <span class="text-white font-semibold">${sourceLabel}</span> (${catLabel})
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-red-500/20 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-red-500/10">
+                <span class="text-slate-400 block text-[10px]">RESPONSE SYNTHESIS</span>
+                <strong class="text-red-400 text-sm">0.0.0.0 (Zero IP)</strong>
+              </div>
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-red-500/10">
+                <span class="text-slate-400 block text-[10px]">CATEGORY</span>
+                <strong class="text-slate-200 text-sm capitalize">${catLabel}</strong>
+              </div>
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-red-500/10">
+                <span class="text-slate-400 block text-[10px]">SOURCE FILE</span>
+                <strong class="text-slate-200 text-xs truncate block" title="${sourceLabel}">${sourceLabel}</strong>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <button onclick="allowCurrentDomain()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-950/50">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Allow this domain (Add to Allowlist)</span>
+              </button>
+              <button onclick="blockCurrentDomain()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition flex items-center gap-2 border border-slate-700">
+                <i class="fa-solid fa-ban text-red-400"></i>
+                <span>Block this domain (Custom Blocklist)</span>
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        // ALLOWED RESULT
+        card.innerHTML = `
+          <div class="bg-gradient-to-br from-emerald-950/40 to-slate-900 border-2 border-emerald-500/30 rounded-3xl p-8 shadow-2xl relative overflow-hidden glow-green">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl shrink-0">
+                  <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div>
+                  <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold font-mono tracking-wider uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    ALLOWED [Passed Clean]
+                  </span>
+                  <h2 class="text-2xl font-black text-white font-mono mt-1 break-all">${data.domain}</h2>
+                  <p class="text-xs text-emerald-300/80 font-mono mt-1">
+                    ${data.source === 'allowlist.txt' ? 'Explicitly whitelisted in <span class="text-white">allowlist.txt</span>' : 'Not found in any active ad or tracking blocklists'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-emerald-500/20 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-emerald-500/10">
+                <span class="text-slate-400 block text-[10px]">FORWARDING RESOLVER</span>
+                <strong class="text-emerald-400 text-sm">8.8.8.8 / 1.1.1.1</strong>
+              </div>
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-emerald-500/10">
+                <span class="text-slate-400 block text-[10px]">CACHE BEHAVIOR</span>
+                <strong class="text-slate-200 text-sm">TTL Caching Enabled</strong>
+              </div>
+              <div class="bg-slate-950/60 p-3 rounded-xl border border-emerald-500/10">
+                <span class="text-slate-400 block text-[10px]">STATUS</span>
+                <strong class="text-emerald-400 text-sm">Safe / Unblocked</strong>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex items-center gap-3">
+              <button onclick="blockCurrentDomain()" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-red-950/50">
+                <i class="fa-solid fa-ban"></i>
+                <span>Block this domain (Add to Custom Blocklist)</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+    } catch (err) {
+      showToast("Error inspecting domain: " + err, "error");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-bolt"></i> Check';
+    }
+  }
+
+  // Action: Allow domain
+  async function allowCurrentDomain() {
+    if (!currentInspectedDomain) return;
+    try {
+      const res = await fetch('/api/allowlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: currentInspectedDomain })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Added", "success");
+        checkDomain();
+      } else {
+        showToast(data.error || "Failed to add domain", "error");
+      }
+    } catch (e) {
+      showToast("Request failed: " + e, "error");
+    }
+  }
+
+  // Action: Block domain
+  async function blockCurrentDomain() {
+    if (!currentInspectedDomain) return;
+    try {
+      const res = await fetch('/api/blocklist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: currentInspectedDomain, category: 'custom' })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Added", "success");
+        checkDomain();
+      } else {
+        showToast(data.error || "Failed to block domain", "error");
+      }
+    } catch (e) {
+      showToast("Request failed: " + e, "error");
+    }
+  }
+</script>
+{% endblock %}
+

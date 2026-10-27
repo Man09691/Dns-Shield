@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Settings — DNS Shield{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-4xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>System Settings</span>
+        <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-medium border border-slate-700">
+          Preferences & Retention
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Configure automated log retention, client IP privacy masking, and SQLite database compaction.</p>
+    </div>
+
+    <!-- Save button at top right -->
+    <button onclick="saveSettings()" id="btnSaveTop"
+      class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-900/40">
+      <i class="fa-solid fa-floppy-disk"></i>
+      <span>Save Changes</span>
+    </button>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 1: LOG RETENTION POLICY (SLIDER)
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-blue-400"></i>
+          <span>Log Retention Policy</span>
+        </h2>
+        <p class="text-xs text-slate-400 mt-1 max-w-xl">
+          Queries older than this threshold are purged at midnight and during statistics polling. Automatically triggers <code class="text-cyan-400 font-mono text-[11px]">VACUUM</code> when database size exceeds 50MB.
+        </p>
+      </div>
+
+      <!-- Current retention badge -->
+      <span id="retentionBadge" class="px-3 py-1 rounded-xl text-xs font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0">
+        5 Days
+      </span>
+    </div>
+
+    <!-- Slider with discrete 5 steps -->
+    <div class="space-y-4 pt-2">
+      <input type="range" id="retentionSlider" min="0" max="4" step="1" value="1"
+        oninput="onSliderMove(this.value)"
+        onchange="onSliderChange(this.value)"
+        class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500 focus:outline-none" />
+
+      <!-- Step labels -->
+      <div class="flex justify-between text-xs font-mono text-slate-400">
+        <span class="cursor-pointer hover:text-white" onclick="setSlider(0)">1 Day</span>
+        <span class="cursor-pointer hover:text-white font-bold text-blue-400" onclick="setSlider(1)">5 Days</span>
+        <span class="cursor-pointer hover:text-white" onclick="setSlider(2)">7 Days</span>
+        <span class="cursor-pointer hover:text-white" onclick="setSlider(3)">30 Days</span>
+        <span class="cursor-pointer hover:text-white" onclick="setSlider(4)">Keep All</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 2: PRIVACY & CLIENT IP ANONYMIZATION
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm">
+    <div class="flex items-start justify-between gap-6">
+      <div class="space-y-1">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-user-shield text-emerald-400"></i>
+          <span>Anonymize Client IP Addresses</span>
+        </h2>
+        <p class="text-xs text-slate-400 leading-relaxed max-w-xl">
+          Masks client IPv4 addresses by hiding the first three octets before logging and serving via dashboard APIs (e.g. <code class="text-emerald-400 font-mono text-[11px]">127.0.0.1 &rarr; xxx.xxx.xxx.1</code>).
+        </p>
+
+        <!-- Visual preview -->
+        <div class="mt-4 inline-flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-400">
+          <span>Raw IP: <strong class="text-slate-300">192.168.1.45</strong></span>
+          <i class="fa-solid fa-arrow-right text-slate-600"></i>
+          <span>Masked IP: <strong id="ipMaskPreview" class="text-emerald-400">xxx.xxx.xxx.45</strong></span>
+        </div>
+      </div>
+
+      <!-- Toggle switch -->
+      <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+        <input type="checkbox" id="anonymizeToggle" onchange="onAnonymizeChange(this.checked)" class="sr-only peer">
+        <div class="w-14 h-7 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
+      </label>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 3: DATABASE STORAGE & MAINTENANCE
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+    <div>
+      <h2 class="text-base font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-database text-cyan-400"></i>
+        <span>Database Storage & Compaction</span>
+      </h2>
+      <p class="text-xs text-slate-400 mt-1">SQLite WAL mode persistent store located at <code class="text-cyan-400 font-mono text-xs">queries.db</code>.</p>
+    </div>
+
+    <!-- Storage info tiles -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono text-center">
+      <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+        <span class="text-[10px] text-slate-400 uppercase font-bold block">Current DB Size</span>
+        <span id="dbSizeText" class="text-xl font-black text-cyan-400 mt-1 block">0 KB</span>
+        <span class="text-[10px] text-slate-400 mt-0.5 block">queries.db on disk</span>
+      </div>
+
+      <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+        <span class="text-[10px] text-slate-400 uppercase font-bold block">Total Query Records</span>
+        <span id="dbRecordsCount" class="text-xl font-black text-white mt-1 block">0</span>
+        <span class="text-[10px] text-slate-400 mt-0.5 block">rows in queries table</span>
+      </div>
+
+      <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+        <span class="text-[10px] text-slate-400 uppercase font-bold block">SQLite Journal Mode</span>
+        <span class="text-xl font-black text-emerald-400 mt-1 block">WAL</span>
+        <span class="text-[10px] text-slate-400 mt-0.5 block">Write-Ahead Logging</span>
+      </div>
+    </div>
+
+    <!-- Maintenance Action Buttons -->
+    <div class="pt-2 flex flex-col sm:flex-row items-center gap-4">
+      <!-- Manual Purge -->
+      <button onclick="triggerPurge()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-broom text-blue-400"></i>
+        <span>Purge Old Logs Now</span>
+      </button>
+
+      <!-- Clear All Logs with VACUUM -->
+      <button onclick="confirmClearLogs()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-red-600/90 hover:bg-red-500 text-white text-xs font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-red-950/50">
+        <i class="fa-solid fa-trash-can"></i>
+        <span>Clear All Logs Now (With VACUUM)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Save Action Bar -->
+  <div class="p-4 bg-[#0f172a] border border-slate-800 rounded-2xl flex items-center justify-between">
+    <div class="text-xs text-slate-400 font-mono">
+      Changes persist to <code class="text-cyan-400">meta</code> table in SQLite.
+    </div>
+    <button onclick="saveSettings()" id="btnSaveBottom"
+      class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-900/40 flex items-center gap-2">
+      <i class="fa-solid fa-floppy-disk"></i>
+      <span>Save Settings</span>
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const STEP_VALUES = [1, 5, 7, 30, -1];
+  const STEP_LABELS = ['1 Day', '5 Days', '7 Days', '30 Days', 'Keep All'];
+
+  let currentRetention = 5;
+  let currentAnonymize = false;
+
+  async function loadSettings() {
+    try {
+      const [settingsRes, statsRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/stats')
+      ]);
+      const data = await settingsRes.json();
+      const sData = await statsRes.json();
+
+      currentRetention = data.retention_days !== undefined ? data.retention_days : 5;
+      currentAnonymize = Boolean(data.anonymize_ip);
+
+      // Map retention days to slider index
+      let sliderIdx = STEP_VALUES.indexOf(currentRetention);
+      if (sliderIdx === -1) sliderIdx = 1;
+
+      document.getElementById('retentionSlider').value = sliderIdx;
+      updateRetentionDisplay(sliderIdx);
+
+      const toggle = document.getElementById('anonymizeToggle');
+      toggle.checked = currentAnonymize;
+      updateAnonymizeDisplay(currentAnonymize);
+
+      // Storage metrics from /api/stats db_size or /api/settings
+      document.getElementById('dbSizeText').innerText = sData.db_size || data.db_size_str || '0 KB';
+      document.getElementById('dbRecordsCount').innerText = Number(sData.total !== undefined ? sData.total : (data.total_records || 0)).toLocaleString();
+
+    } catch (err) {
+      console.error("Failed to load settings:", err);
+    }
+  }
+
+  function onSliderMove(val) {
+    const idx = parseInt(val);
+    updateRetentionDisplay(idx);
+    currentRetention = STEP_VALUES[idx];
+  }
+
+  async function onSliderChange(val) {
+    const idx = parseInt(val);
+    updateRetentionDisplay(idx);
+    currentRetention = STEP_VALUES[idx];
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ retention_days: currentRetention })
+      });
+      if (res.ok) {
+        showToast("Saved", "success");
+      }
+    } catch (e) {
+      showToast("Error saving retention: " + e, "error");
+    }
+  }
+
+  function setSlider(idx) {
+    document.getElementById('retentionSlider').value = idx;
+    onSliderMove(idx);
+    onSliderChange(idx);
+  }
+
+  function updateRetentionDisplay(idx) {
+    const label = STEP_LABELS[idx];
+    document.getElementById('retentionBadge').innerText = label;
+  }
+
+  async function onAnonymizeChange(checked) {
+    currentAnonymize = checked;
+    updateAnonymizeDisplay(checked);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ anonymize_ip: currentAnonymize })
+      });
+      if (res.ok) {
+        showToast("Saved", "success");
+      }
+    } catch (e) {
+      showToast("Error saving anonymize setting: " + e, "error");
+    }
+  }
+
+  function updateAnonymizeDisplay(checked) {
+    const preview = document.getElementById('ipMaskPreview');
+    if (checked) {
+      preview.innerText = "xxx.xxx.xxx.45";
+      preview.className = "text-emerald-400 font-bold";
+    } else {
+      preview.innerText = "192.168.1.45";
+      preview.className = "text-slate-400 font-normal";
+    }
+  }
+
+  async function saveSettings() {
+    const btnTop = document.getElementById('btnSaveTop');
+    const btnBottom = document.getElementById('btnSaveBottom');
+
+    btnTop.disabled = true;
+    btnBottom.disabled = true;
+
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          retention_days: currentRetention,
+          anonymize_ip: currentAnonymize
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showToast("Saved", "success");
+        loadSettings();
+      } else {
+        showToast(data.error || "Failed to save settings", "error");
+      }
+    } catch (e) {
+      showToast("Request failed: " + e, "error");
+    } finally {
+      btnTop.disabled = false;
+      btnBottom.disabled = false;
+    }
+  }
+
+  async function triggerPurge() {
+    try {
+      const res = await fetch('/api/purge', { method: 'POST' });
+      const data = await res.json();
+      showToast(data.message || "Old logs purged successfully", "success");
+      loadSettings();
+    } catch (e) {
+      showToast("Purge failed: " + e, "error");
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', loadSettings);
+</script>
+{% endblock %}
+
