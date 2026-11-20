@@ -13,8 +13,7 @@ This file:
 Usage:
   python main.py
 
-The DNS server listens on port 5053 by default (no admin needed).
-Change to port 53 in config.json (requires Administrator on Windows).
+The DNS server listens on port 53 by default (requires Administrator on Windows).
 """
 
 import json
@@ -23,6 +22,12 @@ import sys
 import logging
 import threading
 from logging.handlers import RotatingFileHandler
+from dns.cache import DNSCache, get_auto_cache_size
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+os.chdir(PROJECT_ROOT)
 
 from dns.server import DNSServer
 from dns.blocklist import Blocklist
@@ -33,6 +38,8 @@ from dns.stats import Stats
 
 def load_config(config_file="config.json"):
     """Load configuration from config.json."""
+    if not os.path.isabs(config_file):
+        config_file = os.path.join(PROJECT_ROOT, config_file)
     try:
         with open(config_file, "r", encoding="utf-8") as f:
             config = json.load(f)
@@ -96,26 +103,33 @@ def main():
     logger = logging.getLogger("main")
 
     # ── Initialize the blocklist ──
-    blocklist = Blocklist()
+    blocklist = Blocklist(config_file=os.path.join(PROJECT_ROOT, "config.json"))
     blocklist_dir = config.get("blocklist_dir", "blocklists")
+    if not os.path.isabs(blocklist_dir):
+        blocklist_dir = os.path.join(PROJECT_ROOT, blocklist_dir)
     allowlist_file = config.get("allowlist_file", "allowlist.txt")
+    if not os.path.isabs(allowlist_file):
+        allowlist_file = os.path.join(PROJECT_ROOT, allowlist_file)
 
     total_blocked = blocklist.load_all_blocklists(blocklist_dir)
     total_allowed = blocklist.load_allowlist(allowlist_file)
-    logger.info(f"Loaded {total_blocked} blocked domains and {total_allowed} allowed domains")
+    logger.info(f"Loaded {total_blocked} domains")
+    print(f"Loaded {total_blocked} domains")
 
     # ── Background auto-update (daemon thread) ──
     if config.get("auto_update"):
         blocklist.start_auto_update(
-            blocklist_dir,
-            allowlist_file,
+            blocklist_dir=blocklist_dir,
+            allowlist_file=allowlist_file,
             interval_hours=config.get("update_interval_hours", 24),
-            oisd_url=config.get("oisd_url", "https://small.oisd.nl/domainswild/")
+            initial_delay=60
         )
 
     # ── Initialize the cache ──
+    auto_size = get_auto_cache_size()
+    print(f"[MAIN] Cache auto size: {auto_size}")
     cache = DNSCache(
-        max_size=config.get("cache_size", 1024),
+        max_size=auto_size,
         min_ttl=config.get("cache_min_ttl", 60),
         max_ttl=config.get("cache_max_ttl", 3600),
     )
@@ -128,15 +142,20 @@ def main():
     )
 
     # ── Initialize stats ──
-    stats = Stats(db_file=config.get("db_file", "queries.db"))
+    stats = Stats(db_path=config.get("db_path", config.get("db_file", "port53_queries.db")))
+
+    # ── Set blocklist and cache metadata for the dashboard ──
+    stats.set_meta(blocklist_size=len(blocklist.blocked_domains), cache_size=cache.max_size)
 
     # ── Create and start the DNS server ──
     server = DNSServer(config, blocklist, cache, rate_limiter, stats)
 
+    listen_host = config.get("listen_host", "0.0.0.0")
+    listen_port = config.get("listen_port", 53)
+
     print("\n" + "=" * 60)
     print("  DNS Server with Ad/Tracker Blocking")
-    print(f"  Listening on {config.get('listen_host', '0.0.0.0')}:"
-          f"{config.get('listen_port', 5053)}")
+    print(f"  Listening on {listen_host}:{listen_port}")
     print(f"  Upstream DNS: {config.get('upstream_dns', '8.8.8.8')} "
           f"(fallback: {config.get('upstream_fallback', '1.1.1.1')})")
     print(f"  Blocking mode: {config.get('blocking_mode', 'zero_ip')}")
@@ -146,6 +165,13 @@ def main():
 
     try:
         server.start()
+    except (PermissionError, OSError) as e:
+        if isinstance(e, PermissionError) or getattr(e, "winerror", None) == 10013 or getattr(e, "errno", None) == 13:
+            print("\nERROR: Port 53 needs Admin rights. Right-click PowerShell -> Run as Admin -> python main.py\n")
+            sys.exit(1)
+        else:
+            logger.error(f"Socket error starting DNS server: {e}")
+            raise
     except KeyboardInterrupt:
         print("\nShutting down...")
         server.stop()

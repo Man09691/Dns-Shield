@@ -2,25 +2,38 @@
 
 {% block title %}Blocklists — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8 max-w-6xl mx-auto">
 
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
         <span>Active Blocklists</span>
-        <span class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-mono font-bold border border-cyan-500/20">
-          235,974 Total Rules
-        </span>
       </h1>
-      <p class="text-xs text-slate-400 mt-1">Multi-tier categorization filters compiled from OISD, community feeds, and local overrides.</p>
+      <p class="text-xs text-slate-400 mt-1">Multi-tier categorization filters compiled from OISD, EasyPrivacy, Threat feeds, and custom overrides.</p>
     </div>
 
-    <!-- Quick stats badge -->
-    <div class="flex items-center gap-2">
-      <span class="text-xs text-slate-400 font-mono bg-[#0f172a] px-3 py-1.5 rounded-xl border border-slate-800">
-        Auto-update: <strong class="text-emerald-400">Every 24h (OISD)</strong>
+    <!-- 2 Separate Boxes for Rules Counts -->
+    <div class="flex flex-wrap items-center gap-3">
+      <!-- Box 1: Total Rules in Files -->
+      <div class="bg-[#0f172a] border border-cyan-500/30 px-4 py-2 rounded-2xl shadow-sm text-xs font-mono">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Total Rules in Files</span>
+        <span class="text-cyan-400 font-black text-sm" id="totalRulesBadge"><span class="skeleton inline-block w-20 h-4 rounded"></span></span>
+      </div>
+
+      <!-- Box 2: Unique Active Rules -->
+      <div class="bg-[#0f172a] border border-emerald-500/30 px-4 py-2 rounded-2xl shadow-sm text-xs font-mono">
+        <span class="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Unique Active Rules</span>
+        <span class="text-emerald-400 font-black text-sm" id="totalUniqueTopBadge"><span class="skeleton inline-block w-20 h-4 rounded"></span></span>
+      </div>
+
+      <span class="hidden lg:inline-block text-xs text-slate-400 font-mono bg-[#0f172a] px-3.5 py-2.5 rounded-2xl border border-slate-800">
+        Auto-update: <strong class="text-emerald-400">Every 24h</strong>
       </span>
     </div>
   </div>
@@ -29,10 +42,10 @@
        4 BLOCKLIST CARDS
   ════════════════════════════════════════════════════════════════ -->
   <div id="blocklistsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="col-span-full text-center py-12 text-slate-400 font-mono text-xs">
-      <i class="fa-solid fa-spinner fa-spin text-xl mb-2 text-blue-400 block"></i>
-      Loading blocklist files...
-    </div>
+    <div class="skeleton h-44 rounded-3xl"></div>
+    <div class="skeleton h-44 rounded-3xl"></div>
+    <div class="skeleton h-44 rounded-3xl"></div>
+    <div class="skeleton h-44 rounded-3xl"></div>
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
@@ -50,7 +63,7 @@
     <div class="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center gap-6 text-xs font-mono text-slate-400">
       <div>Storage Directory: <strong class="text-slate-300">blocklists/</strong></div>
       <div>Blocking Mode: <strong class="text-cyan-400">zero_ip (0.0.0.0 / ::)</strong></div>
-      <div>Total Unique Domains: <strong class="text-emerald-400">235,974</strong></div>
+      <div>Total Unique Domains: <strong class="text-emerald-400" id="totalUniqueBadge">--</strong></div>
     </div>
   </div>
 
@@ -93,6 +106,24 @@
           iconName: 'fa-filter'
         }
       };
+
+      const rawCount = Number(data.total_raw_rules || data.total_rules || 0);
+      const uniqueCount = Number(data.total_unique_rules || data.total_unique || 0);
+
+      const trBadge = document.getElementById('totalRulesBadge');
+      if (trBadge && rawCount > 0) {
+        trBadge.textContent = rawCount.toLocaleString();
+      }
+
+      const tuTopBadge = document.getElementById('totalUniqueTopBadge');
+      if (tuTopBadge && uniqueCount > 0) {
+        tuTopBadge.textContent = uniqueCount.toLocaleString();
+      }
+
+      const tuBadge = document.getElementById('totalUniqueBadge');
+      if (tuBadge && uniqueCount > 0) {
+        tuBadge.textContent = uniqueCount.toLocaleString();
+      }
 
       data.blocklists.forEach(b => {
         const theme = colorMap[b.color] || colorMap.blue;
@@ -153,8 +184,11 @@
     } catch (err) {
       console.error("Failed to load blocklists:", err);
       document.getElementById('blocklistsGrid').innerHTML = `
-        <div class="col-span-full text-center py-12 text-red-400 font-mono text-xs">
-          Error loading blocklist metadata.
+        <div class="col-span-full text-center py-12 text-slate-400 font-mono text-xs">
+          <div class="text-red-400 mb-2 font-bold">Failed to load blocklist metadata</div>
+          <button onclick="loadBlocklists()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-sans font-semibold">
+            <i class="fa-solid fa-rotate-right mr-1"></i> Retry
+          </button>
         </div>
       `;
     }
@@ -176,7 +210,13 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', loadBlocklists);
+  window.initBlocklists = loadBlocklists;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadBlocklists);
+  } else {
+    loadBlocklists();
+  }
 </script>
 {% endblock %}
 

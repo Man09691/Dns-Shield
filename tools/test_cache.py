@@ -32,7 +32,7 @@ def query_server(domain):
     sock.settimeout(5)
 
     start = time.time()
-    sock.sendto(query, ("127.0.0.1", 5053))
+    sock.sendto(query, ("127.0.0.1", 53))
     response, _ = sock.recvfrom(4096)
     elapsed = (time.time() - start) * 1000
 

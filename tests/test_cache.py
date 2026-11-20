@@ -112,6 +112,109 @@ class TestDNSCache(unittest.TestCase):
         stats = cache.get_stats()
         self.assertLessEqual(stats["entries"], 50)
 
+    def test_qtype_and_https_caching(self):
+        """BUG 2: A, AAAA, HTTPS have independent keys and do not collide."""
+        cache = DNSCache(max_size=50, min_ttl=60, max_ttl=3600)
+        resp_a = make_dummy_response("leetcode.com", rcode=0) + b"\x01"
+        resp_aaaa = make_dummy_response("leetcode.com", rcode=0) + b"\x1c"
+        resp_https = make_dummy_response("leetcode.com", rcode=0) + b"\x41"
+
+        cache.put("leetcode.com", 1, resp_a, 300)
+        cache.put("leetcode.com", 28, resp_aaaa, 60)
+        cache.put("leetcode.com", 65, resp_https, 60)
+
+        # Verify exact retrieval per qtype
+        data_a, rem_a = cache.get("leetcode.com", 1)
+        data_aaaa, rem_aaaa = cache.get("leetcode.com", 28)
+        data_https, rem_https = cache.get("leetcode.com", 65)
+
+        self.assertEqual(data_a, resp_a)
+        self.assertEqual(data_aaaa, resp_aaaa)
+        self.assertEqual(data_https, resp_https)
+
+        # Verify keys
+        self.assertIn(("leetcode.com", 1, 1), cache.entries)
+        self.assertIn(("leetcode.com", 28, 1), cache.entries)
+        self.assertIn(("leetcode.com", 65, 1), cache.entries)
+
+    def test_serve_stale_window(self):
+        """SERVE-STALE SIMPLE: Retained for 60s as stale after TTL expiry."""
+        cache = DNSCache(max_size=10, min_ttl=10, max_ttl=3600)
+        resp = make_dummy_response("claude.ai", rcode=0)
+        cache.put("claude.ai", 1, resp, ttl=60)
+
+        # 1. Fresh entry
+        data, rem = cache.get("claude.ai", 1)
+        self.assertIsNotNone(data)
+        self.assertGreater(rem, 0)
+
+        # 2. Expire the entry manually by 10s (now < expiry + 60)
+        now = time.time()
+        with cache.lock:
+            key = ("claude.ai", 1, 1)
+            cache.entries[key] = (resp, now - 10, 60)
+
+        # get() returns (None, 0) because fresh TTL expired
+        fresh_data, rem = cache.get("claude.ai", 1)
+        self.assertIsNone(fresh_data)
+        self.assertEqual(rem, 0)
+
+        # get_stale() returns the stale response within 60s
+        stale_data = cache.get_stale("claude.ai", 1)
+        self.assertIsNotNone(stale_data)
+        self.assertEqual(stale_data, resp)
+
+        # 3. Expire beyond 60s (e.g. expired 70s ago)
+        with cache.lock:
+            cache.entries[key] = (resp, now - 70, 60)
+
+        dead_data = cache.get_stale("claude.ai", 1)
+        self.assertIsNone(dead_data, "Dead entry beyond 60s stale window must return None")
+
+    def test_watchlist_prefetch_trigger(self):
+        """PREFETCH SIMPLE: For Watchlist domains ONLY, triggers background prefetch 60s before expiry."""
+        cache = DNSCache(max_size=10, min_ttl=10, max_ttl=3600)
+        resp = make_dummy_response("claude.ai", rcode=0)
+
+        prefetched_calls = []
+        def mock_handler(domain, qtypes=(1, 28, 65)):
+            prefetched_calls.append((domain, qtypes))
+
+        cache.set_prefetch_handler(mock_handler)
+        cache.set_pinned_domains(["claude.ai"])
+        cache.put("claude.ai", 1, resp, ttl=120)
+
+        # Set remaining TTL to 30s (<= 60s)
+        now = time.time()
+        with cache.lock:
+            key = ("claude.ai", 1, 1)
+            cache.entries[key] = (resp, now + 30, 120)
+
+        # Query claude.ai: user gets immediate fresh hit
+        t0 = time.time()
+        data, rem = cache.get("claude.ai", 1)
+        elapsed = time.time() - t0
+        self.assertIsNotNone(data)
+        self.assertLess(elapsed, 0.05, "User query must NOT wait for prefetch")
+
+        # Allow background prefetch thread to fire
+        time.sleep(0.1)
+        self.assertEqual(len(prefetched_calls), 1)
+        self.assertEqual(prefetched_calls[0][0], "claude.ai")
+        self.assertEqual(prefetched_calls[0][1], (1, 28, 65))
+
+        # Non-watchlist domain should NOT trigger prefetch
+        resp_other = make_dummy_response("randomsite.com", rcode=0)
+        cache.put("randomsite.com", 1, resp_other, ttl=120)
+        with cache.lock:
+            key_other = ("randomsite.com", 1, 1)
+            cache.entries[key_other] = (resp_other, now + 30, 120)
+
+        cache.get("randomsite.com", 1)
+        time.sleep(0.1)
+        # Prefetched calls should still only be 1 (for claude.ai)
+        self.assertEqual(len(prefetched_calls), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

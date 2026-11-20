@@ -142,6 +142,8 @@ def parse_response(data):
             print(f"  Answer {i+1}: AAAA  {ipv6}  TTL={ttl}")
         elif rtype == 5:
             print(f"  Answer {i+1}: CNAME  (rdlength={rdlength})  TTL={ttl}")
+        elif rtype == 65:
+            print(f"  Answer {i+1}: HTTPS  (rdlength={rdlength})  TTL={ttl}")
         else:
             print(f"  Answer {i+1}: type={rtype}  rdlength={rdlength}  TTL={ttl}")
 
@@ -158,11 +160,14 @@ def main():
 
     domain = sys.argv[1]
     qtype_str = sys.argv[2].upper() if len(sys.argv) > 2 else "A"
-    qtype_map = {"A": 1, "AAAA": 28, "MX": 15, "NS": 2, "CNAME": 5}
-    qtype = qtype_map.get(qtype_str, 1)
+    qtype_map = {"A": 1, "AAAA": 28, "HTTPS": 65, "MX": 15, "NS": 2, "CNAME": 5, "TXT": 16, "PTR": 12}
+    try:
+        qtype = int(qtype_str)
+    except ValueError:
+        qtype = qtype_map.get(qtype_str, 1)
 
     server_ip = "127.0.0.1"
-    server_port = 5053
+    server_port = 53
 
     print(f"Querying {domain} ({qtype_str}) via {server_ip}:{server_port}")
 

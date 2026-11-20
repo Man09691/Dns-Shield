@@ -1,33 +1,50 @@
 {
     "listen_host": "0.0.0.0",
-    "listen_port": 5053,
-    "upstream_dns": "8.8.8.8",
+    "listen_port": 53,
     "upstream_fallback": "1.1.1.1",
+    "upstream_dns": "8.8.8.8",
     "upstream_port": 53,
     "upstream_timeout": 3,
-
     "blocking_mode": "zero_ip",
-
     "cache_size": 1024,
     "cache_min_ttl": 60,
     "cache_max_ttl": 3600,
-
     "rate_limit_queries": 50,
     "rate_limit_window": 10,
     "rate_limit_block_seconds": 30,
-
     "dashboard_host": "127.0.0.1",
-    "dashboard_port": 8080,
-
+    "dashboard_port": 8081,
     "log_file": "dns_server.log",
-    "db_file": "queries.db",
-
+    "db_file": "port53_queries.db",
+    "db_path": "port53_queries.db",
     "blocklist_dir": "blocklists",
     "allowlist_file": "allowlist.txt",
     "blocked_ips_file": "blocked_ips.txt",
-
+    "active_blocklists": {
+        "ads.txt": true,
+        "trackers.txt": true,
+        "malware.txt": true,
+        "custom.txt": true
+    },
     "auto_update": true,
     "update_interval_hours": 24,
     "update_time": "02:00",
-    "oisd_url": "https://big.oisd.nl/domainswild/"
+    "oisd_url": "https://big.oisd.nl/domainswild/",
+    "retention_days": 5,
+    "max_logs": 100000,
+    "privacy_mask_public_only": true,
+    "show_full_ip": false,
+    "upstream_validation": true,
+    "allowed_upstreams": [
+        "8.8.8.8",
+        "1.1.1.1"
+    ],
+    "client_allowlist_enabled": true,
+    "client_allowlist": [
+        "127.0.0.1",
+        "::1",
+        "192.168.0.0/16",
+        "10.0.0.0/8",
+        "172.16.0.0/12"
+    ]
 }

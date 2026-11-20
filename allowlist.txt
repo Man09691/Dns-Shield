@@ -2,5 +2,44 @@
 # even if they appear in a blocklist.
 # Useful for false positives.
 
-# Example:
-# safe-ads.example.com
+main.vscode-cdn.net
+vscode-cdn.net
+youtube.com
+accounts.youtube.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

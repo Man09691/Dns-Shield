@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
+  <style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}DNS Shield — Ad & Tracker Blocking DNS{% endblock %}</title>
@@ -37,6 +38,18 @@
     .glow-blue { box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.25); }
     .glow-red { box-shadow: 0 0 20px -5px rgba(239, 68, 68, 0.25); }
     .glow-green { box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.25); }
+
+    /* Modern Skeleton Shimmer UI */
+    .skeleton {
+      background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+      border-radius: 10px;
+    }
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -63,7 +76,7 @@
           </div>
         </a>
         <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-          5053
+          <span id="brandPort">53</span>
         </span>
       </div>
 
@@ -95,13 +108,20 @@
         <a href="/blocklists" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'blocklists' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
           <i class="fa-solid fa-shield-virus w-5 text-center text-base"></i>
           <span>Blocklists</span>
-          <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">235k</span>
+          <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300" id="sidebarBlocklistBadge">--</span>
         </a>
 
         <!-- Allowlist -->
         <a href="/allowlist" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'allowlist' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
           <i class="fa-solid fa-circle-check w-5 text-center text-base"></i>
           <span>Allowlist</span>
+        </a>
+
+        <!-- Watchlist -->
+        <a href="/watchlist" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition {% if active_page == 'watchlist' %}bg-blue-500/10 text-blue-400 font-semibold border-r-2 border-blue-500{% else %}text-slate-400 hover:text-slate-200 hover:bg-slate-800/50{% endif %}">
+          <i class="fa-solid fa-star w-5 text-center text-base text-amber-400"></i>
+          <span>Watchlist</span>
+          <span class="ml-auto text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300" id="sidebarWatchlistBadge">--</span>
         </a>
 
         <!-- Analytics -->
@@ -126,9 +146,9 @@
         <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
           <span class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Rules Active
+            Rules Active:
           </span>
-          <span class="font-mono font-bold text-slate-200">235,974</span>
+          <span class="font-mono font-bold text-emerald-400" id="rulesActive"><span id="sidebarRulesActive">450,312</span></span>
         </div>
         <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
           <div class="bg-gradient-to-r from-blue-500 to-cyan-400 h-1.5 rounded-full" style="width: 100%"></div>
@@ -157,10 +177,10 @@
 
       <div class="hidden sm:flex items-center gap-2 text-xs text-slate-400">
         <span class="text-slate-400 font-mono">Server Port:</span>
-        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-cyan-400 border border-slate-700 text-xs font-semibold">UDP 5053</span>
+        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-cyan-400 border border-slate-700 text-xs font-semibold">UDP <span id="serverPort">53</span></span>
         <span class="text-slate-400">|</span>
         <span class="text-slate-400 font-mono">Dashboard:</span>
-        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-slate-300 border border-slate-700 text-xs">8080</span>
+        <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-slate-300 border border-slate-700 text-xs" id="dashboardPort">8081</span>
       </div>
     </div>
 
@@ -219,7 +239,7 @@
   <div id="toastContainer" class="fixed bottom-6 right-6 z-50 space-y-2 pointer-events-none"></div>
 
   <!-- Global Javascript -->
-  <script>
+  <script data-base-script="true">
     // Global Auto-refresh state
     window.autoRefreshEnabled = (localStorage.getItem('dns_shield_autorefresh') !== 'false');
 
@@ -331,9 +351,54 @@
       }, 3500);
     }
 
+    // Global system info & rules counter updater
+    async function updateGlobalSystemInfo() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        const uniqueCount = Number(data.total_unique_rules || data.total_unique || data.blocklist_size || data.rules || 0);
+        const rawCount = Number(data.total_raw_rules || data.total_rules || 0);
+
+        if (uniqueCount > 0) {
+          const badgeEl = document.getElementById('sidebarBlocklistBadge');
+          if (badgeEl) badgeEl.innerText = uniqueCount >= 1000 ? Math.round(uniqueCount / 1000) + 'k' : uniqueCount;
+          const activeEl = document.getElementById('sidebarRulesActive');
+          if (activeEl) activeEl.innerText = uniqueCount.toLocaleString();
+          const rulesActiveEl = document.getElementById('rulesActive');
+          if (rulesActiveEl && !activeEl) rulesActiveEl.innerText = uniqueCount.toLocaleString();
+        }
+        if (rawCount > 0) {
+          const rawEl = document.getElementById('sidebarRawRules');
+          if (rawEl) rawEl.innerText = rawCount.toLocaleString();
+        }
+        if (data.watchlist_count !== undefined) {
+          const wlBadge = document.getElementById('sidebarWatchlistBadge');
+          if (wlBadge) wlBadge.innerText = data.watchlist_count;
+        }
+        if (data.server_port) {
+          const spEl = document.getElementById('serverPort');
+          if (spEl) spEl.innerText = data.server_port;
+          const bpEl = document.getElementById('brandPort');
+          if (bpEl) bpEl.innerText = data.server_port;
+        }
+        if (data.dashboard_port) {
+          const dpEl = document.getElementById('dashboardPort');
+          if (dpEl) dpEl.innerText = data.dashboard_port;
+        }
+      } catch (err) {
+        console.error("Global system info fetch error:", err);
+      }
+    }
+
     // Initialize UI state
     document.addEventListener('DOMContentLoaded', () => {
       updatePauseUI();
+      updateGlobalSystemInfo();
+      setInterval(() => {
+        if (window.autoRefreshEnabled) {
+          updateGlobalSystemInfo();
+        }
+      }, 5000);
     });
   </script>
   {% block extra_scripts %}{% endblock %}

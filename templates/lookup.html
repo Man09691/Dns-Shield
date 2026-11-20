@@ -2,6 +2,10 @@
 
 {% block title %}Domain Lookup — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-8">
 
@@ -13,7 +17,7 @@
     </div>
     <h1 class="text-3xl font-black text-white tracking-tight">Domain Blocklist Inspector</h1>
     <p class="text-sm text-slate-400 max-w-lg mx-auto">
-      Instantly test whether a domain or URL will be blocked by DNS Shield (235,974 active rules across ads, trackers, malware, and custom lists).
+      Instantly test whether a domain or URL will be blocked by DNS Shield (<span id="lookupRulesCount">active</span> rules across ads, trackers, malware, and custom lists).
     </p>
   </div>
 
@@ -60,7 +64,7 @@
     </div>
     <div class="text-sm font-semibold text-slate-300">Enter a domain name to inspect</div>
     <div class="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-      DNS Shield will analyze the domain hierarchy against 235,974 rules and indicate the exact category and rule file.
+      DNS Shield will analyze the domain hierarchy against active blocklist rules and indicate the exact category and rule file.
     </div>
   </div>
 
@@ -243,6 +247,23 @@
     } catch (e) {
       showToast("Request failed: " + e, "error");
     }
+  }
+  window.initLookup = async function() {
+    try {
+      const res = await fetch('/api/stats');
+      const data = await res.json();
+      const count = Number(data.blocklist_size || data.rules || 0);
+      if (count > 0) {
+        const el = document.getElementById('lookupRulesCount');
+        if (el) el.innerText = count.toLocaleString();
+      }
+    } catch (e) {}
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initLookup);
+  } else {
+    window.initLookup();
   }
 </script>
 {% endblock %}

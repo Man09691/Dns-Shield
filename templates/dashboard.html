@@ -2,6 +2,10 @@
 
 {% block title %}Dashboard — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8 max-w-7xl mx-auto">
 
@@ -11,7 +15,7 @@
       <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
         <span>System Dashboard</span>
         <span class="text-xs px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono font-medium">
-          Port 5053 Active
+          Port 53 Active
         </span>
       </h1>
       <p class="text-xs text-slate-400 mt-1">Real-time recursive DNS resolution, telemetry, and automated threat mitigation.</p>
@@ -30,6 +34,7 @@
     </div>
   </div>
 
+
   <!-- ══════════════════════════════════════════════════════════════
        4 STAT CARDS (Total Queries, Blocked %, Cache %, Avg Speed)
   ════════════════════════════════════════════════════════════════ -->
@@ -44,12 +49,12 @@
         </div>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="cardTotalQueries" class="text-3xl font-black text-white font-mono">0</span>
+        <span id="cardTotalQueries" class="text-3xl font-black text-white font-mono"><span class="skeleton inline-block w-24 h-8 rounded-lg"></span></span>
         <span class="text-[11px] text-slate-400 font-mono">queries</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
-        <span>Forwarded: <strong id="cardForwardedCount" class="text-slate-300">0</strong></span>
-        <span>Cached: <strong id="cardCachedSub" class="text-slate-300">0</strong></span>
+        <span>Forwarded: <strong id="cardForwardedCount" class="text-slate-300"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Cached: <strong id="cardCachedSub" class="text-slate-300"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
       </div>
     </div>
 
@@ -62,12 +67,12 @@
         </div>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="cardBlockedPct" class="text-3xl font-black text-red-400 font-mono">0.0%</span>
+        <span id="cardBlockedPct" class="text-3xl font-black text-red-400 font-mono"><span class="skeleton inline-block w-20 h-8 rounded-lg"></span></span>
         <span class="text-[11px] text-red-400/70 font-mono">ratio</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
-        <span>Blocked: <strong id="cardBlockedCount" class="text-red-400">0</strong></span>
-        <span>Rules: <strong class="text-slate-300">235,974</strong></span>
+        <span>Blocked: <strong id="cardBlockedCount" class="text-red-400"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Rules: <strong id="cardRulesCount" class="text-slate-300">450K</strong></span>
       </div>
     </div>
 
@@ -80,30 +85,47 @@
         </div>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="cardCachePct" class="text-3xl font-black text-blue-400 font-mono">0.0%</span>
+        <span id="cardCachePct" class="text-3xl font-black text-blue-400 font-mono"><span class="skeleton inline-block w-20 h-8 rounded-lg"></span></span>
         <span class="text-[11px] text-blue-400/70 font-mono">hits / (hits+fwd)</span>
       </div>
       <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
-        <span>Hits: <strong id="cardCacheHits" class="text-blue-400">0</strong></span>
-        <span>Live: <strong id="cardCacheLive" class="text-slate-300">0</strong></span>
+        <span>Hits: <strong id="cardCacheHits" class="text-blue-400"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Live: <strong id="cardCacheLive" class="text-slate-300"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
       </div>
     </div>
 
-    <!-- Card 4: Avg Speed (Green) -->
+    <!-- Card 4: Avg Speed & 4 Latency Averages -->
     <div class="bg-[#0f172a] border border-emerald-500/20 rounded-2xl p-5 shadow-sm relative overflow-hidden group hover:border-emerald-500/40 transition">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Average Speed</span>
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm">
-          <i class="fa-solid fa-gauge-high"></i>
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Average Latency</span>
+        <div class="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+          <span>Weighted:</span>
+          <strong id="cardAvgSpeed" class="text-emerald-400 font-bold"><span class="skeleton inline-block w-14 h-4 rounded"></span></strong>
         </div>
       </div>
-      <div class="flex items-baseline gap-2">
-        <span id="cardAvgSpeed" class="text-3xl font-black text-emerald-400 font-mono">0.0 ms</span>
+
+      <!-- 4 Separate Averages Grid -->
+      <div class="grid grid-cols-2 gap-2 mt-3 pt-2.5 border-t border-slate-800/60 font-mono text-center">
+        <div class="bg-slate-950/70 p-2 rounded-xl border border-slate-800/50">
+          <span class="text-[9px] text-slate-400 block uppercase font-bold">Forwarded</span>
+          <span id="avgForwarded" class="text-xs font-black text-emerald-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-xl border border-slate-800/50">
+          <span class="text-[9px] text-slate-400 block uppercase font-bold">Cached</span>
+          <span id="avgCached" class="text-xs font-black text-blue-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-xl border border-slate-800/50">
+          <span class="text-[9px] text-slate-400 block uppercase font-bold">Blocked</span>
+          <span id="avgBlocked" class="text-xs font-black text-rose-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></span>
+        </div>
+        <div class="bg-slate-950/70 p-2 rounded-xl border border-slate-800/50">
+          <span class="text-[9px] text-slate-400 block uppercase font-bold">Internal</span>
+          <span id="avgInternal" class="text-xs font-black text-cyan-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></span>
+        </div>
       </div>
-      <div class="mt-3 flex items-center justify-between text-xs text-slate-400 pt-3 border-t border-slate-800/60 font-mono">
-        <span>Internal: <strong id="cardInternalUs" class="text-emerald-400">0</strong> µs</span>
-        <span>Blocked: <strong id="cardBlockedMs" class="text-slate-300">0</strong> ms</span>
-      </div>
+      <!-- Hidden legacy hooks for compatibility -->
+      <span id="cardInternalUs" class="hidden">0</span>
+      <span id="cardBlockedMs" class="hidden">0</span>
     </div>
 
   </div>
@@ -148,7 +170,7 @@
       <!-- Footer Info -->
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 font-mono">
         <span>Resolution: 1 Hour intervals</span>
-        <span id="chartTotalLabel">Last 24 Hours Total: 0 queries</span>
+        <span id="chartTotalLabel"><span class="skeleton inline-block w-48 h-3.5 rounded"></span></span>
       </div>
     </div>
 
@@ -166,10 +188,11 @@
 
       <!-- List Container -->
       <div id="topBlockedList" class="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-        <div class="text-center py-10 text-slate-400 text-xs font-mono">
-          <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-slate-400"></i>
-          <div>Loading blocked domains...</div>
-        </div>
+        <div class="skeleton h-9 w-full rounded-xl"></div>
+        <div class="skeleton h-9 w-full rounded-xl"></div>
+        <div class="skeleton h-9 w-full rounded-xl"></div>
+        <div class="skeleton h-9 w-full rounded-xl"></div>
+        <div class="skeleton h-9 w-full rounded-xl"></div>
       </div>
 
       <!-- Quick Check Action -->
@@ -183,7 +206,7 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════
-       BOTTOM ROW: Upstream Resolver Race & Latency Percentiles
+       BOTTOM ROW: Upstream Resolvers & Latency Distribution
   ════════════════════════════════════════════════════════════════ -->
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -201,7 +224,8 @@
       </div>
 
       <div id="upstreamContainer" class="space-y-3">
-        <!-- Rendered via JS -->
+        <div class="skeleton h-16 w-full rounded-xl"></div>
+        <div class="skeleton h-16 w-full rounded-xl"></div>
       </div>
     </div>
 
@@ -218,26 +242,26 @@
         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Telemetry</span>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-          <div class="text-[10px] text-slate-400 font-bold uppercase">Internal Lookup</div>
-          <div id="latInternalUs" class="text-lg font-black text-emerald-400 font-mono mt-1">0.0 µs</div>
-          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">O(1) memory lookup</div>
+      <div class="grid grid-cols-2 gap-3 text-center" style="grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl" style="min-width: 0; text-align: center; padding: 10px 6px; overflow: hidden;">
+          <div class="text-slate-400 font-bold uppercase" style="font-size: 10px; line-height: 1.3;">Internal Lookup</div>
+          <div id="latInternalUs" class="font-black text-emerald-400 font-mono mt-1" style="font-size: 20px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;"><span class="skeleton inline-block w-16 h-6 rounded"></span></div>
+          <div class="text-slate-400 mt-0.5 font-mono" style="font-size: 10px; line-height: 1.3;">O(1) memory lookup</div>
         </div>
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-          <div class="text-[10px] text-slate-400 font-bold uppercase">Blocked Time</div>
-          <div id="latBlockedMs" class="text-lg font-black text-red-400 font-mono mt-1">0.0 ms</div>
-          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">0.0.0.0 synthesized</div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl" style="min-width: 0; text-align: center; padding: 10px 6px; overflow: hidden;">
+          <div class="text-slate-400 font-bold uppercase" style="font-size: 10px; line-height: 1.3;">Blocked Time</div>
+          <div id="latBlockedMs" class="font-black text-red-400 font-mono mt-1" style="font-size: 20px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;"><span class="skeleton inline-block w-16 h-6 rounded"></span></div>
+          <div class="text-slate-400 mt-0.5 font-mono" style="font-size: 10px; line-height: 1.3;">0.0.0.0 synthesized</div>
         </div>
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-          <div class="text-[10px] text-slate-400 font-bold uppercase">Forwarded p50</div>
-          <div id="latFwdP50" class="text-lg font-black text-cyan-400 font-mono mt-1">0.0 ms</div>
-          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">Median network latency</div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl" style="min-width: 0; text-align: center; padding: 10px 6px; overflow: hidden;">
+          <div class="text-slate-400 font-bold uppercase" style="font-size: 10px; line-height: 1.3;">Forwarded p50</div>
+          <div id="latFwdP50" class="font-black text-cyan-400 font-mono mt-1" style="font-size: 20px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;"><span class="skeleton inline-block w-16 h-6 rounded"></span></div>
+          <div class="text-slate-400 mt-0.5 font-mono" style="font-size: 10px; line-height: 1.3;">Median network latency</div>
         </div>
-        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3">
-          <div class="text-[10px] text-slate-400 font-bold uppercase">Forwarded p95</div>
-          <div id="latFwdP95" class="text-lg font-black text-amber-400 font-mono mt-1">0.0 ms</div>
-          <div class="text-[10px] text-slate-400 mt-0.5 font-mono">95th percentile ceiling</div>
+        <div class="bg-slate-950/60 border border-slate-800/80 rounded-xl" style="min-width: 0; text-align: center; padding: 10px 6px; overflow: hidden;">
+          <div class="text-slate-400 font-bold uppercase" style="font-size: 10px; line-height: 1.3;">Forwarded p95</div>
+          <div id="latFwdP95" class="font-black text-amber-400 font-mono mt-1" style="font-size: 20px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden;"><span class="skeleton inline-block w-16 h-6 rounded"></span></div>
+          <div class="text-slate-400 mt-0.5 font-mono" style="font-size: 10px; line-height: 1.3;">95th percentile ceiling</div>
         </div>
       </div>
     </div>
@@ -378,16 +402,12 @@
     });
   }
 
-  // Refresh Dashboard Data from Real DB Endpoints
-  async function refreshData() {
+  // Fast Decoupled Refresh: First load top cards from /api/stats, then lazy-load charts
+  async function refreshStats() {
     try {
-      const [statsRes, hourlyRes] = await Promise.all([
-        fetch('/api/stats'),
-        fetch('/api/hourly?hours=24')
-      ]);
-
+      const statsRes = await fetch('/api/stats');
+      if (!statsRes.ok) throw new Error("HTTP " + statsRes.status);
       const data = await statsRes.json();
-      const hourly = await hourlyRes.json();
 
       // Read real stats values
       const total = Number(data.total) || 0;
@@ -409,77 +429,131 @@
       prevCacheRatio = cacheRatio;
       prevAvgSpeed = avgMs;
 
-      document.getElementById('cardForwardedCount').innerText = forwarded.toLocaleString();
-      document.getElementById('cardCachedSub').innerText = cached.toLocaleString();
-      document.getElementById('cardBlockedCount').innerText = blocked.toLocaleString();
-      document.getElementById('cardCacheHits').innerText = cached.toLocaleString();
-      document.getElementById('cardCacheLive').innerText = Number(data.cache?.live || 0).toLocaleString();
+      const fwdEl = document.getElementById('cardForwardedCount');
+      if (fwdEl) fwdEl.innerText = forwarded.toLocaleString();
+      const cchSubEl = document.getElementById('cardCachedSub');
+      if (cchSubEl) cchSubEl.innerText = cached.toLocaleString();
+      const blkCountEl = document.getElementById('cardBlockedCount');
+      if (blkCountEl) blkCountEl.innerText = blocked.toLocaleString();
+      const cchHitsEl = document.getElementById('cardCacheHits');
+      if (cchHitsEl) cchHitsEl.innerText = cached.toLocaleString();
+      const cchLiveEl = document.getElementById('cardCacheLive');
+      if (cchLiveEl) cchLiveEl.innerText = Number(data.cache?.live || 0).toLocaleString();
 
-      document.getElementById('cardInternalUs').innerText = data.latency?.internal_us !== undefined ? data.latency.internal_us : (data.avg_speed_us || 1.8);
-      document.getElementById('cardBlockedMs').innerText = data.latency?.blocked_ms !== undefined ? data.latency.blocked_ms : 0.1;
+      // Update dynamic rules count in Blocked card (e.g. 450K)
+      const uniqueRules = Number(data.total_unique_rules || data.total_unique || data.blocklist_size || data.rules || 0);
+      const cardRulesEl = document.getElementById('cardRulesCount');
+      if (cardRulesEl && uniqueRules > 0) {
+        cardRulesEl.innerText = uniqueRules >= 1000 ? Math.round(uniqueRules / 1000) + 'K' : uniqueRules;
+      }
 
-      // Latency Distribution Card
+      // Latency formatting helper (seconds if >= 1000ms, else ms)
+      function formatLatency(ms) {
+        const val = Number(ms) || 0;
+        if (val >= 1000) {
+          return (val / 1000).toFixed(2) + ' s';
+        }
+        return val.toFixed(1) + ' ms';
+      }
+
+      // 4 Separate Average Latencies
+      const fwdAvg = Number(data.forwarded_avg_ms !== undefined ? data.forwarded_avg_ms : (data.avg_forwarded || data.latency?.forwarded_p50 || 0));
+      const cchAvg = Number(data.cached_avg_ms !== undefined ? data.cached_avg_ms : (data.avg_cached || 0.5));
+      const blkAvg = Number(data.blocked_avg_ms !== undefined ? data.blocked_avg_ms : (data.avg_blocked || data.latency?.blocked_ms || 0));
+      const intUs = Number(data.internal_avg_us !== undefined ? data.internal_avg_us : (data.avg_internal || data.latency?.internal_us || 1.8));
+
+      const avgFwdEl = document.getElementById('avgForwarded');
+      if (avgFwdEl) avgFwdEl.innerText = formatLatency(fwdAvg);
+      const avgCchEl = document.getElementById('avgCached');
+      if (avgCchEl) avgCchEl.innerText = formatLatency(cchAvg);
+      const avgBlkEl = document.getElementById('avgBlocked');
+      if (avgBlkEl) avgBlkEl.innerText = formatLatency(blkAvg);
+      const avgIntEl = document.getElementById('avgInternal');
+      if (avgIntEl) avgIntEl.innerText = intUs >= 1000 ? (intUs / 1000).toFixed(1) + ' ms' : intUs.toFixed(0) + ' µs';
+
+      const cardIntEl = document.getElementById('cardInternalUs');
+      if (cardIntEl) cardIntEl.innerText = intUs >= 1000 ? (intUs / 1000).toFixed(1) : intUs.toFixed(1);
+      const cardBlkEl = document.getElementById('cardBlockedMs');
+      if (cardBlkEl) cardBlkEl.innerText = formatLatency(blkAvg);
+
+      // Latency Distribution Card (2x2 grid, formatted)
       if (data.latency) {
-        document.getElementById('latInternalUs').innerText = data.latency.internal_us + ' µs';
-        document.getElementById('latBlockedMs').innerText = data.latency.blocked_ms + ' ms';
-        document.getElementById('latFwdP50').innerText = data.latency.forwarded_p50 + ' ms';
-        document.getElementById('latFwdP95').innerText = data.latency.forwarded_p95 + ' ms';
+        const latIntEl = document.getElementById('latInternalUs');
+        if (latIntEl) {
+          latIntEl.innerText = intUs >= 1000 ? (intUs / 1000).toFixed(2) + ' ms' : intUs.toFixed(1) + ' µs';
+        }
+        const latBlkEl = document.getElementById('latBlockedMs');
+        if (latBlkEl) {
+          latBlkEl.innerText = formatLatency(data.blocked_avg_ms !== undefined ? data.blocked_avg_ms : data.latency.blocked_ms);
+        }
+        const latP50El = document.getElementById('latFwdP50');
+        if (latP50El) {
+          latP50El.innerText = formatLatency(data.latency.forwarded_p50);
+        }
+        const latP95El = document.getElementById('latFwdP95');
+        if (latP95El) {
+          latP95El.innerText = formatLatency(data.latency.forwarded_p95);
+        }
       }
 
       // Top 10 Blocked List from real DB data
       const topList = document.getElementById('topBlockedList');
-      if (data.top_blocked && data.top_blocked.length > 0) {
-        let html = '';
-        data.top_blocked.forEach(([domain, count], idx) => {
-          const badge = getCategoryBadge(domain);
-          html += `
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition">
-              <div class="flex items-center gap-3 min-w-0 pr-2">
-                <span class="w-5 text-center text-xs font-mono font-bold ${idx < 3 ? 'text-red-400' : 'text-slate-400'}">${idx + 1}</span>
-                <span class="text-xs font-mono text-slate-200 truncate" title="${domain}">${domain}</span>
+      if (topList) {
+        if (data.top_blocked && data.top_blocked.length > 0) {
+          let html = '';
+          data.top_blocked.forEach(([domain, count], idx) => {
+            const badge = getCategoryBadge(domain);
+            html += `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition">
+                <div class="flex items-center gap-3 min-w-0 pr-2">
+                  <span class="w-5 text-center text-xs font-mono font-bold ${idx < 3 ? 'text-red-400' : 'text-slate-400'}">${idx + 1}</span>
+                  <span class="text-xs font-mono text-slate-200 truncate" title="${domain}">${domain}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  ${badge}
+                  <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${Number(count).toLocaleString()}</span>
+                </div>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
-                ${badge}
-                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${Number(count).toLocaleString()}</span>
-              </div>
+            `;
+          });
+          topList.innerHTML = html;
+        } else {
+          topList.innerHTML = `
+            <div class="text-center py-10 text-slate-400 text-xs font-mono">
+              <i class="fa-solid fa-shield-heart text-2xl mb-2 text-emerald-500/50 block"></i>
+              No blocked queries recorded yet.
             </div>
           `;
-        });
-        topList.innerHTML = html;
-      } else {
-        topList.innerHTML = `
-          <div class="text-center py-10 text-slate-400 text-xs font-mono">
-            <i class="fa-solid fa-shield-heart text-2xl mb-2 text-emerald-500/50 block"></i>
-            No blocked queries recorded yet.
-          </div>
-        `;
+        }
       }
 
       // Upstream Resolvers List
       const upContainer = document.getElementById('upstreamContainer');
-      if (data.upstream && data.upstream.length > 0) {
+      if (upContainer && data.upstream && data.upstream.length > 0) {
         let upHtml = '';
         data.upstream.forEach(u => {
           const provider = u.ip === '8.8.8.8' ? 'Google Public DNS' : (u.ip === '1.1.1.1' ? 'Cloudflare DNS' : 'Custom DNS');
+          const speedFormatted = formatLatency(u.avg_ms);
           upHtml += `
-            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-mono font-bold text-xs">
-                  ${u.ip.slice(0, 3)}
-                </div>
-                <div>
-                  <div class="text-xs font-bold text-white flex items-center gap-2 font-mono">
+            <div class="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 flex flex-col gap-1.5 transition">
+              <div class="flex items-center justify-between gap-2 flex-wrap">
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="w-6 h-6 rounded-md bg-blue-500/10 text-blue-400 flex items-center justify-center font-mono font-bold text-[10px] shrink-0">
+                    ${u.ip.slice(0, 3)}
+                  </div>
+                  <div class="flex items-center gap-1.5 font-mono text-xs font-bold text-white truncate">
                     <span>${u.ip}</span>
-                    <span class="text-[10px] text-slate-400 font-sans font-normal">${provider}</span>
+                    <span class="text-[10px] text-slate-400 font-sans font-normal truncate">(${provider})</span>
                   </div>
-                  <div class="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Speed: <strong class="text-emerald-400">${u.avg_ms} ms</strong> | Fails: <strong class="${u.fails > 0 ? 'text-red-400' : 'text-slate-400'}">${u.fails}</strong>
-                  </div>
+                </div>
+                <div class="text-right font-mono shrink-0">
+                  <span class="text-xs font-bold text-slate-200">${Number(u.queries).toLocaleString()}</span>
+                  <span class="text-[10px] text-slate-400 ml-1">queries won</span>
                 </div>
               </div>
-              <div class="text-right font-mono">
-                <span class="text-sm font-bold text-slate-200">${Number(u.queries).toLocaleString()}</span>
-                <span class="text-[10px] text-slate-400 block">queries won</span>
+              <div class="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1.5 border-t border-slate-800/40">
+                <div>Speed: <strong class="text-emerald-400">${speedFormatted}</strong></div>
+                <div>Fails: <strong class="${u.fails > 0 ? 'text-red-400' : 'text-slate-400'}">${u.fails}</strong></div>
               </div>
             </div>
           `;
@@ -487,7 +561,58 @@
         upContainer.innerHTML = upHtml;
       }
 
-      // Update 24h Hourly Chart (datasets = [blocked, allowed])
+      // Top Clients List from data.top_clients if container exists
+      const clientsContainer = document.getElementById('topClientsContainer');
+      if (clientsContainer) {
+        if (data.top_clients && data.top_clients.length > 0) {
+          let cHtml = '';
+          data.top_clients.forEach(([clientIp, count], idx) => {
+            const isPrivate = clientIp.startsWith('127.') || clientIp.startsWith('192.168.') || clientIp.startsWith('10.') || clientIp.startsWith('172.') || clientIp === '::1';
+            const badgeClass = isPrivate ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+            cHtml += `
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition">
+                <div class="flex items-center gap-2.5 min-w-0 pr-2">
+                  <span class="w-4 text-center text-xs font-mono font-bold ${idx < 3 ? 'text-blue-400' : 'text-slate-400'}">${idx + 1}</span>
+                  <span class="text-xs font-mono text-slate-200 truncate" title="${clientIp}">${clientIp}</span>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded border ${badgeClass}">${isPrivate ? 'LAN' : 'WAN'}</span>
+                  <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${Number(count).toLocaleString()}</span>
+                </div>
+              </div>
+            `;
+          });
+          clientsContainer.innerHTML = cHtml;
+        } else {
+          clientsContainer.innerHTML = `
+            <div class="text-center py-8 text-slate-400 text-xs font-mono">
+              <i class="fa-solid fa-network-wired text-xl mb-2 text-slate-600 block"></i>
+              No client activity yet.
+            </div>
+          `;
+        }
+      }
+
+    } catch (err) {
+      console.error("Dashboard stats fetch error:", err);
+      const topList = document.getElementById('topBlockedList');
+      if (topList && topList.querySelector('.skeleton')) {
+        topList.innerHTML = `
+          <div class="text-center py-6 text-slate-400 text-xs font-mono">
+            <div class="text-red-400 mb-2">Failed to load statistics</div>
+            <button onclick="refreshData()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">Retry</button>
+          </div>
+        `;
+      }
+    }
+  }
+
+  async function refreshHourly() {
+    try {
+      const hourlyRes = await fetch('/api/hourly?hours=24');
+      if (!hourlyRes.ok) return;
+      const hourly = await hourlyRes.json();
+
       if (hourlyChart && hourly.labels) {
         const sum24 = (hourly.counts || []).reduce((a, b) => a + b, 0);
         const emptyState = document.getElementById('hourlyEmptyState');
@@ -499,17 +624,23 @@
         }
 
         hourlyChart.data.labels = hourly.labels;
-        // Dataset 0: Blocked, Dataset 1: Allowed
         hourlyChart.data.datasets[0].data = hourly.blocked || Array(hourly.labels.length).fill(0);
         hourlyChart.data.datasets[1].data = hourly.allowed || (hourly.counts || []).map((c, i) => Math.max(0, c - (hourly.blocked ? hourly.blocked[i] : 0)));
         hourlyChart.update('none');
 
-        document.getElementById('chartTotalLabel').innerText = `Last 24 Hours Total: ${sum24.toLocaleString()} queries`;
+        const totalLabel = document.getElementById('chartTotalLabel');
+        if (totalLabel) {
+          totalLabel.innerText = `Last 24 Hours Total: ${sum24.toLocaleString()} queries`;
+        }
       }
-
     } catch (err) {
-      console.error("Dashboard refresh error:", err);
+      console.error("Hourly chart fetch error:", err);
     }
+  }
+
+  async function refreshData() {
+    refreshStats();
+    refreshHourly();
   }
 
   function startDashboardPolling() {
@@ -521,20 +652,26 @@
     }, 2000);
   }
 
-  // Poll every 2 seconds
-  document.addEventListener('DOMContentLoaded', () => {
+  window.initDashboard = function() {
     initHourlyChart();
     refreshData();
     startDashboardPolling();
+  };
 
-    window.addEventListener('autorefresh-toggle', (e) => {
-      if (e.detail.enabled) {
-        refreshData();
-        startDashboardPolling();
-      } else {
-        if (dashboardTimer) clearInterval(dashboardTimer);
-      }
-    });
+  // Run immediately on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initDashboard);
+  } else {
+    window.initDashboard();
+  }
+
+  window.addEventListener('autorefresh-toggle', (e) => {
+    if (e.detail.enabled) {
+      refreshData();
+      startDashboardPolling();
+    } else {
+      if (dashboardTimer) clearInterval(dashboardTimer);
+    }
   });
 </script>
 {% endblock %}

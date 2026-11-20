@@ -261,6 +261,78 @@ def get_answer_ips(answers):
     return ips
 
 
+def extract_cname_chain(answers):
+    """
+    Extract all CNAME targets from a list of answer records.
+
+    CNAME records (type 5) encode the target domain name in their RDATA
+    using the same label-encoded format as the rest of the DNS packet.
+    We need the full raw packet bytes to resolve compression pointers in
+    RDATA, so this function accepts the raw packet and re-parses CNAME RDATA
+    from the stored rdata_offset within the original packet bytes.
+
+    Returns: list of lowercase CNAME target strings in chain order.
+    e.g. ["cname1.example.com", "cname2.example.com"]
+    """
+    cnames = []
+    for record in answers:
+        if record["type"] == 5:  # CNAME record
+            # rdata contains the encoded target name; it may use compression
+            # pointers into the original packet, so we stored rdata_offset.
+            # We re-parse from rdata bytes directly (no compression across packets).
+            # For safety, parse without compression pointer support.
+            try:
+                rdata = record["rdata"]
+                labels = []
+                offset = 0
+                while offset < len(rdata):
+                    length = rdata[offset]
+                    if length == 0:
+                        break
+                    # Compression pointer inside RDATA (unusual but possible in
+                    # some implementations): we skip gracefully.
+                    if (length & 0xC0) == 0xC0:
+                        # Can't resolve without full packet context here;
+                        # caller should use extract_cname_chain_from_packet instead
+                        break
+                    offset += 1
+                    if offset + length > len(rdata):
+                        break
+                    labels.append(rdata[offset:offset + length].decode("ascii", errors="replace"))
+                    offset += length
+                if labels:
+                    cnames.append(".".join(labels).lower())
+            except Exception:
+                pass
+    return cnames
+
+
+def extract_cname_chain_from_packet(data, answers):
+    """
+    Extract CNAME targets from answer records using the full packet bytes.
+
+    Unlike extract_cname_chain(), this correctly handles DNS name compression
+    pointers inside CNAME RDATA by using the full raw packet as context.
+
+    Args:
+        data: raw DNS packet bytes (the full upstream response)
+        answers: list of parsed answer records (from parse_answer_section)
+
+    Returns: list of lowercase CNAME target strings in chain order.
+    """
+    cnames = []
+    for record in answers:
+        if record["type"] == 5:  # CNAME record
+            try:
+                # rdata_offset points to the RDATA start in the full packet
+                target, _ = parse_domain_name(data, record["rdata_offset"])
+                if target:
+                    cnames.append(target.lower().rstrip("."))
+            except Exception:
+                pass
+    return cnames
+
+
 def get_min_ttl(answers, default=60):
     """
     Get the minimum TTL from a list of answer records.
@@ -272,3 +344,65 @@ def get_min_ttl(answers, default=60):
     if ttls:
         return min(ttls)
     return default
+
+
+def parse_edns0_payload_size(data, header=None):
+    """
+    Parse the EDNS0 OPT record (type 41) from the additional section, if present.
+    Returns the UDP payload size (CLASS field of OPT RR).
+    Default is 512 bytes (standard DNS UDP buffer size) if no OPT record is found.
+    """
+    if len(data) < 12:
+        return 512
+    if header is None:
+        try:
+            header = parse_header(data)
+        except Exception:
+            return 512
+
+    arcount = header.get("arcount", 0)
+    if arcount == 0:
+        return 512
+
+    try:
+        # Skip questions
+        qdcount = header.get("qdcount", 0)
+        offset = 12
+        for _ in range(qdcount):
+            _, offset = parse_domain_name(data, offset)
+            offset += 4  # qtype(2) + qclass(2)
+
+        # Skip answers
+        ancount = header.get("ancount", 0)
+        for _ in range(ancount):
+            _, offset = parse_domain_name(data, offset)
+            if offset + 10 > len(data):
+                return 512
+            _, _, _, rdlength = struct.unpack(">HHIH", data[offset:offset + 10])
+            offset += 10 + rdlength
+
+        # Skip authority records
+        nscount = header.get("nscount", 0)
+        for _ in range(nscount):
+            _, offset = parse_domain_name(data, offset)
+            if offset + 10 > len(data):
+                return 512
+            _, _, _, rdlength = struct.unpack(">HHIH", data[offset:offset + 10])
+            offset += 10 + rdlength
+
+        # Parse additional records to find OPT (type 41)
+        for _ in range(arcount):
+            if offset >= len(data):
+                break
+            name, offset = parse_domain_name(data, offset)
+            if offset + 10 > len(data):
+                break
+            rtype, rclass, ttl, rdlength = struct.unpack(">HHIH", data[offset:offset + 10])
+            offset += 10 + rdlength
+            if rtype == 41:  # OPT record
+                return max(512, rclass)
+    except Exception:
+        pass
+
+    return 512
+

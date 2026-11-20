@@ -32,8 +32,8 @@ def run_live_test():
     with open("config.json", "r") as f:
         config = json.load(f)
 
-    # Use port 5053
-    config["listen_port"] = 5053
+    # Use port 53
+    config["listen_port"] = 53
 
     blocklist = Blocklist()
     blocklist.load_all_blocklists("blocklists")
@@ -55,7 +55,7 @@ def run_live_test():
     try:
         # Test 1: Blocked domain (doubleclick.net)
         q_blocked = build_query("doubleclick.net")
-        sock.sendto(q_blocked, ("127.0.0.1", 5053))
+        sock.sendto(q_blocked, ("127.0.0.1", 53))
         resp, _ = sock.recvfrom(512)
         ip = ".".join(str(b) for b in resp[-4:])
         print(f"Test 1 - doubleclick.net: IP={ip} (Expected 0.0.0.0)")
@@ -63,7 +63,7 @@ def run_live_test():
 
         # Test 2: Subdomain of blocked (ads.doubleclick.net)
         q_sub = build_query("ads.doubleclick.net")
-        sock.sendto(q_sub, ("127.0.0.1", 5053))
+        sock.sendto(q_sub, ("127.0.0.1", 53))
         resp, _ = sock.recvfrom(512)
         ip = ".".join(str(b) for b in resp[-4:])
         print(f"Test 2 - ads.doubleclick.net: IP={ip} (Expected 0.0.0.0)")
@@ -71,12 +71,12 @@ def run_live_test():
 
         # Test 3: Unblocked domain (example.com)
         q_real = build_query("example.com")
-        sock.sendto(q_real, ("127.0.0.1", 5053))
+        sock.sendto(q_real, ("127.0.0.1", 53))
         resp, _ = sock.recvfrom(512)
         print(f"Test 3 - example.com: got upstream response ({len(resp)} bytes)")
 
         # Test 4: Query again to test cache hit
-        sock.sendto(q_real, ("127.0.0.1", 5053))
+        sock.sendto(q_real, ("127.0.0.1", 53))
         resp2, _ = sock.recvfrom(512)
         c_stats = cache.get_stats()
         print(f"Test 4 - Cache stats: {c_stats}")
@@ -84,10 +84,10 @@ def run_live_test():
 
         # Test 5: Negative cache (NXDOMAIN)
         q_nx = build_query(f"nx-domain-test-{int(time.time())}.org")
-        sock.sendto(q_nx, ("127.0.0.1", 5053))
+        sock.sendto(q_nx, ("127.0.0.1", 53))
         resp_nx1, _ = sock.recvfrom(512)
         # Query again for NXDOMAIN
-        sock.sendto(q_nx, ("127.0.0.1", 5053))
+        sock.sendto(q_nx, ("127.0.0.1", 53))
         resp_nx2, _ = sock.recvfrom(512)
         c_stats2 = cache.get_stats()
         print(f"Test 5 - Negative cache stats: {c_stats2}")

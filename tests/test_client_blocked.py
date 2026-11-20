@@ -16,7 +16,7 @@ query = bytes.fromhex(
 )
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sock.sendto(query, ('127.0.0.1', 5053))
+sock.sendto(query, ('127.0.0.1', 53))
 print("Sent test DNS query for doubleclick.net")
 
 response, _ = sock.recvfrom(512)

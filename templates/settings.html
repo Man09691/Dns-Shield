@@ -2,6 +2,10 @@
 
 {% block title %}Settings — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8 max-w-4xl mx-auto">
 
@@ -72,25 +76,37 @@
       <div class="space-y-1">
         <h2 class="text-base font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-user-shield text-emerald-400"></i>
-          <span>Anonymize Client IP Addresses</span>
+          <span>Client IP Privacy & Masking</span>
         </h2>
         <p class="text-xs text-slate-400 leading-relaxed max-w-xl">
-          Masks client IPv4 addresses by hiding the first three octets before logging and serving via dashboard APIs (e.g. <code class="text-emerald-400 font-mono text-[11px]">127.0.0.1 &rarr; xxx.xxx.xxx.1</code>).
+          Private & localhost IPs (<code class="text-emerald-400 font-mono text-[11px]">127.0.0.1</code>, <code class="text-emerald-400 font-mono text-[11px]">192.168.x.x</code>, <code class="text-emerald-400 font-mono text-[11px]">10.x.x.x</code>, <code class="text-emerald-400 font-mono text-[11px]">172.16-31.x.x</code>) are never sensitive and always display in full. Public client IPs are masked (<code class="text-emerald-400 font-mono text-[11px]">xxx.xxx.xxx.8</code>) unless <strong>Show full IP</strong> is enabled.
         </p>
 
         <!-- Visual preview -->
-        <div class="mt-4 inline-flex items-center gap-3 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-400">
-          <span>Raw IP: <strong class="text-slate-300">192.168.1.45</strong></span>
-          <i class="fa-solid fa-arrow-right text-slate-600"></i>
-          <span>Masked IP: <strong id="ipMaskPreview" class="text-emerald-400">xxx.xxx.xxx.45</strong></span>
+        <div class="mt-4 flex flex-wrap items-center gap-3 font-mono text-xs text-slate-400">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
+            <span>LAN: <strong class="text-emerald-400">127.0.0.1</strong></span>
+            <i class="fa-solid fa-arrow-right text-slate-600"></i>
+            <span class="text-emerald-400">127.0.0.1 (Full)</span>
+          </div>
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800">
+            <span>WAN: <strong class="text-slate-300">8.8.8.8</strong></span>
+            <i class="fa-solid fa-arrow-right text-slate-600"></i>
+            <span>Display: <strong id="ipMaskPreview" class="text-amber-400">xxx.xxx.xxx.8</strong></span>
+          </div>
         </div>
       </div>
 
-      <!-- Toggle switch -->
-      <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-        <input type="checkbox" id="anonymizeToggle" onchange="onAnonymizeChange(this.checked)" class="sr-only peer">
-        <div class="w-14 h-7 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-600"></div>
-      </label>
+      <!-- Toggle switch: Show full IP -->
+      <div class="text-right shrink-0 mt-1">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="showFullIpToggle" onchange="onShowFullIpChange(this.checked)" class="sr-only peer">
+          <!-- Hidden compatibility toggle for older tests/scripts -->
+          <input type="checkbox" id="anonymizeToggle" class="hidden">
+          <div class="w-14 h-7 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+        <div class="text-[11px] font-mono text-slate-400 mt-1" id="showFullIpLabel">Show full IP: OFF</div>
+      </div>
     </div>
   </div>
 
@@ -143,10 +159,63 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════
+       SECTION 4: CLIENT ACCESS CONTROL & SECURITY (S5 + S4)
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+    <div class="flex items-start justify-between gap-6">
+      <div class="space-y-1">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-blue-400"></i>
+          <span>Client Allowlist & Access Control</span>
+        </h2>
+        <p class="text-xs text-slate-400 leading-relaxed max-w-xl">
+          Restrict queries to trusted IP addresses and CIDR subnets. Unauthorized clients receive <code class="text-rose-400 font-mono text-[11px]">REFUSED (RCODE 5)</code>. Localhost (<code class="text-emerald-400 font-mono text-[11px]">127.0.0.1</code>, <code class="text-emerald-400 font-mono text-[11px]">::1</code>) is permanently allowed.
+        </p>
+      </div>
+
+      <!-- Toggle switch: Client Allowlist -->
+      <div class="text-right shrink-0 mt-1">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="clientAllowlistToggle" onchange="onClientAllowlistToggleChange(this.checked)" class="sr-only peer">
+          <div class="w-14 h-7 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+        <div class="text-[11px] font-mono text-slate-400 mt-1" id="clientAllowlistLabel">Allowlist: ON</div>
+      </div>
+    </div>
+
+    <!-- Security metrics grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-mono text-center">
+      <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+        <span class="text-[10px] text-slate-400 uppercase font-bold block">Clients Refused (S5)</span>
+        <span id="clientBlockedMetric" class="text-xl font-black text-rose-400 mt-1 block">0</span>
+        <span class="text-[10px] text-slate-400 mt-0.5 block">unauthorized client IP queries</span>
+      </div>
+
+      <div class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
+        <span class="text-[10px] text-slate-400 uppercase font-bold block">Invalid Upstream Dropped (S4)</span>
+        <span id="invalidUpstreamMetric" class="text-xl font-black text-amber-400 mt-1 block">0</span>
+        <span class="text-[10px] text-slate-400 mt-0.5 block">spoofed / mismatched upstream responses</span>
+      </div>
+    </div>
+
+    <!-- Text area for IP / CIDR entries -->
+    <div class="space-y-2">
+      <label class="text-xs font-semibold text-slate-300 flex items-center justify-between">
+        <span>Allowed Client IPs & Subnets (One per line)</span>
+        <span class="text-[11px] font-mono text-slate-400">Supports IPv4, IPv6, & CIDR notation</span>
+      </label>
+      <textarea id="clientAllowlistText" rows="5"
+        class="w-full bg-slate-950/80 border border-slate-800 rounded-2xl p-4 text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500 transition"
+        placeholder="127.0.0.1&#10;::1&#10;192.168.0.0/16&#10;10.0.0.0/8&#10;172.16.0.0/12"></textarea>
+      <p class="text-[11px] text-slate-400">Saved to <code class="text-cyan-400 font-mono text-[10px]">config.json</code> on save.</p>
+    </div>
+  </div>
+
   <!-- Bottom Save Action Bar -->
   <div class="p-4 bg-[#0f172a] border border-slate-800 rounded-2xl flex items-center justify-between">
     <div class="text-xs text-slate-400 font-mono">
-      Changes persist to <code class="text-cyan-400">meta</code> table in SQLite.
+      Changes persist to <code class="text-cyan-400">config.json</code> & SQLite <code class="text-cyan-400">meta</code> table.
     </div>
     <button onclick="saveSettings()" id="btnSaveBottom"
       class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-lg shadow-blue-900/40 flex items-center gap-2">
@@ -165,6 +234,8 @@
 
   let currentRetention = 5;
   let currentAnonymize = false;
+  let currentShowFullIp = false;
+  let currentClientAllowlistEnabled = true;
 
   async function loadSettings() {
     try {
@@ -176,7 +247,8 @@
       const sData = await statsRes.json();
 
       currentRetention = data.retention_days !== undefined ? data.retention_days : 5;
-      currentAnonymize = Boolean(data.anonymize_ip);
+      currentShowFullIp = Boolean(data.show_full_ip);
+      currentAnonymize = !currentShowFullIp;
 
       // Map retention days to slider index
       let sliderIdx = STEP_VALUES.indexOf(currentRetention);
@@ -185,9 +257,30 @@
       document.getElementById('retentionSlider').value = sliderIdx;
       updateRetentionDisplay(sliderIdx);
 
-      const toggle = document.getElementById('anonymizeToggle');
-      toggle.checked = currentAnonymize;
-      updateAnonymizeDisplay(currentAnonymize);
+      const fullToggle = document.getElementById('showFullIpToggle');
+      if (fullToggle) fullToggle.checked = currentShowFullIp;
+      const anonToggle = document.getElementById('anonymizeToggle');
+      if (anonToggle) anonToggle.checked = currentAnonymize;
+      updateShowFullIpDisplay(currentShowFullIp);
+
+      // S5 Client Allowlist settings
+      if (data.client_allowlist_enabled !== undefined) {
+        currentClientAllowlistEnabled = Boolean(data.client_allowlist_enabled);
+      }
+      const caToggle = document.getElementById('clientAllowlistToggle');
+      if (caToggle) caToggle.checked = currentClientAllowlistEnabled;
+      updateClientAllowlistDisplay(currentClientAllowlistEnabled);
+
+      if (Array.isArray(data.client_allowlist)) {
+        const caText = document.getElementById('clientAllowlistText');
+        if (caText) caText.value = data.client_allowlist.join('\n');
+      }
+
+      // Security metrics
+      const cbElem = document.getElementById('clientBlockedMetric');
+      if (cbElem) cbElem.innerText = Number(sData.client_blocked || 0).toLocaleString();
+      const iuElem = document.getElementById('invalidUpstreamMetric');
+      if (iuElem) iuElem.innerText = Number(sData.invalid_upstream || 0).toLocaleString();
 
       // Storage metrics from /api/stats db_size or /api/settings
       document.getElementById('dbSizeText').innerText = sData.db_size || data.db_size_str || '0 KB';
@@ -195,6 +288,19 @@
 
     } catch (err) {
       console.error("Failed to load settings:", err);
+    }
+  }
+
+  function onClientAllowlistToggleChange(checked) {
+    currentClientAllowlistEnabled = checked;
+    updateClientAllowlistDisplay(checked);
+  }
+
+  function updateClientAllowlistDisplay(checked) {
+    const lbl = document.getElementById('clientAllowlistLabel');
+    if (lbl) {
+      lbl.innerText = checked ? "Allowlist: ON" : "Allowlist: OFF";
+      lbl.className = checked ? "text-[11px] font-mono text-blue-400 mt-1" : "text-[11px] font-mono text-slate-400 mt-1";
     }
   }
 
@@ -233,32 +339,50 @@
     document.getElementById('retentionBadge').innerText = label;
   }
 
-  async function onAnonymizeChange(checked) {
-    currentAnonymize = checked;
-    updateAnonymizeDisplay(checked);
+  async function onShowFullIpChange(checked) {
+    currentShowFullIp = checked;
+    currentAnonymize = !checked;
+    updateShowFullIpDisplay(checked);
+    const anonToggle = document.getElementById('anonymizeToggle');
+    if (anonToggle) anonToggle.checked = !checked;
     try {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ anonymize_ip: currentAnonymize })
+        body: JSON.stringify({ show_full_ip: currentShowFullIp, anonymize_ip: !currentShowFullIp })
       });
       if (res.ok) {
         showToast("Saved", "success");
       }
     } catch (e) {
-      showToast("Error saving anonymize setting: " + e, "error");
+      showToast("Error saving privacy setting: " + e, "error");
     }
   }
 
-  function updateAnonymizeDisplay(checked) {
+  function updateShowFullIpDisplay(checked) {
     const preview = document.getElementById('ipMaskPreview');
-    if (checked) {
-      preview.innerText = "xxx.xxx.xxx.45";
-      preview.className = "text-emerald-400 font-bold";
-    } else {
-      preview.innerText = "192.168.1.45";
-      preview.className = "text-slate-400 font-normal";
+    const label = document.getElementById('showFullIpLabel');
+    if (preview) {
+      if (checked) {
+        preview.innerText = "8.8.8.8";
+        preview.className = "text-blue-400 font-bold";
+      } else {
+        preview.innerText = "xxx.xxx.xxx.8";
+        preview.className = "text-amber-400 font-bold";
+      }
     }
+    if (label) {
+      label.innerText = checked ? "Show full IP: ON" : "Show full IP: OFF";
+      label.className = checked ? "text-[11px] font-mono text-blue-400 mt-1" : "text-[11px] font-mono text-slate-400 mt-1";
+    }
+  }
+
+  async function onAnonymizeChange(checked) {
+    await onShowFullIpChange(!checked);
+  }
+
+  function updateAnonymizeDisplay(checked) {
+    updateShowFullIpDisplay(!checked);
   }
 
   async function saveSettings() {
@@ -269,12 +393,21 @@
     btnBottom.disabled = true;
 
     try {
+      const caText = document.getElementById('clientAllowlistText');
+      const clientAllowlistLines = (caText ? caText.value : "")
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean);
+
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           retention_days: currentRetention,
-          anonymize_ip: currentAnonymize
+          anonymize_ip: currentAnonymize,
+          show_full_ip: currentShowFullIp,
+          client_allowlist_enabled: currentClientAllowlistEnabled,
+          client_allowlist: clientAllowlistLines
         })
       });
 
@@ -304,7 +437,13 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', loadSettings);
+  window.initSettings = loadSettings;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadSettings);
+  } else {
+    loadSettings();
+  }
 </script>
 {% endblock %}
 

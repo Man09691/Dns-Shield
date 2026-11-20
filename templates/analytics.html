@@ -2,6 +2,10 @@
 
 {% block title %}Analytics — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8 max-w-7xl mx-auto">
 
@@ -36,13 +40,13 @@
         <i class="fa-solid fa-bolt text-blue-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="statCacheRatio" class="text-3xl font-black text-blue-400 font-mono">0.0%</span>
+        <span id="statCacheRatio" class="text-3xl font-black text-blue-400 font-mono"><span class="skeleton inline-block w-20 h-8 rounded-lg"></span></span>
         <span class="text-xs text-slate-400 font-mono">ratio</span>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
-        <span>Hits: <strong id="statHits" class="text-white">0</strong></span>
-        <span>Forwarded: <strong id="statMisses" class="text-white">0</strong></span>
-        <span>Live: <strong id="statLive" class="text-slate-300">0</strong></span>
+        <span>Hits: <strong id="statHits" class="text-white"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Forwarded: <strong id="statMisses" class="text-white"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Live: <strong id="statLive" class="text-slate-300"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
       </div>
     </div>
 
@@ -53,12 +57,12 @@
         <i class="fa-solid fa-shield-halved text-red-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="statBlockedPct" class="text-3xl font-black text-red-400 font-mono">0.0%</span>
+        <span id="statBlockedPct" class="text-3xl font-black text-red-400 font-mono"><span class="skeleton inline-block w-20 h-8 rounded-lg"></span></span>
         <span class="text-xs text-slate-400 font-mono">of all traffic</span>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
-        <span>Blocked: <strong id="statBlockedNum" class="text-red-400">0</strong></span>
-        <span>Allowed: <strong id="statAllowedNum" class="text-emerald-400">0</strong></span>
+        <span>Blocked: <strong id="statBlockedNum" class="text-red-400"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
+        <span>Allowed: <strong id="statAllowedNum" class="text-emerald-400"><span class="skeleton inline-block w-8 h-3.5 rounded"></span></strong></span>
       </div>
     </div>
 
@@ -69,11 +73,11 @@
         <i class="fa-solid fa-trophy text-amber-400"></i>
       </div>
       <div class="flex items-baseline gap-2">
-        <span id="statWinnerIp" class="text-3xl font-black text-cyan-400 font-mono">8.8.8.8</span>
+        <span id="statWinnerIp" class="text-3xl font-black text-cyan-400 font-mono"><span class="skeleton inline-block w-28 h-8 rounded-lg"></span></span>
       </div>
       <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs font-mono text-slate-400">
-        <span>Median Latency: <strong id="statP50" class="text-emerald-400">0.0 ms</strong></span>
-        <span>P95: <strong id="statP95" class="text-amber-400">0.0 ms</strong></span>
+        <span>Median Latency: <strong id="statP50" class="text-emerald-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></strong></span>
+        <span>P95: <strong id="statP95" class="text-amber-400"><span class="skeleton inline-block w-12 h-3.5 rounded"></span></strong></span>
       </div>
     </div>
 
@@ -102,6 +106,7 @@
       </div>
 
       <div class="h-80 w-full relative">
+        <div id="barChartSkeleton" class="skeleton absolute inset-0 rounded-2xl"></div>
         <canvas id="hourlyBarChart"></canvas>
       </div>
     </div>
@@ -110,21 +115,32 @@
     <div class="lg:col-span-5 bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h2 class="text-base font-bold text-white">Rule Distribution</h2>
-          <p class="text-xs text-slate-400 mt-0.5">Breakdown by protection category across 235k domains</p>
+          <h2 class="text-base font-bold text-white">Blocked in Last 24h by Category</h2>
+          <p class="text-xs text-slate-400 mt-0.5">Blocked queries by category in the last 24 hours</p>
         </div>
         <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          Categories
+          Last 24h
         </span>
       </div>
 
       <div class="h-64 w-full relative flex items-center justify-center">
+        <div id="pieChartSkeleton" class="skeleton absolute inset-0 rounded-2xl"></div>
+        <div id="pieEmptyState" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+          <i class="fa-solid fa-shield-check text-3xl text-emerald-500/60 mb-2"></i>
+          <span class="text-xs font-mono text-slate-400">No blocks in last 24h</span>
+        </div>
         <canvas id="categoryPieChart"></canvas>
       </div>
 
       <!-- Category Legend Grid -->
       <div id="categoryLegend" class="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-2 gap-2 text-xs font-mono">
-        <!-- Rendered via JS -->
+        <div class="skeleton h-8 w-full rounded-xl col-span-2"></div>
+      </div>
+
+      <!-- Small reference text at bottom of card -->
+      <div class="mt-3 pt-3 border-t border-slate-800/60 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+        <span>Total Rules in Files:</span>
+        <span class="text-slate-300"><strong id="totalRulesUniqueRef" class="text-emerald-400">--</strong> unique (<strong id="totalRulesRawRef" class="text-cyan-400">--</strong> raw)</span>
       </div>
     </div>
 
@@ -140,7 +156,12 @@
     </h3>
 
     <div id="qtypeGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 font-mono text-center">
-      <!-- Rendered via JS -->
+      <div class="skeleton h-14 rounded-2xl"></div>
+      <div class="skeleton h-14 rounded-2xl"></div>
+      <div class="skeleton h-14 rounded-2xl"></div>
+      <div class="skeleton h-14 rounded-2xl"></div>
+      <div class="skeleton h-14 rounded-2xl"></div>
+      <div class="skeleton h-14 rounded-2xl"></div>
     </div>
   </div>
 
@@ -156,71 +177,104 @@
     const icon = document.getElementById('analyticsRefreshIcon');
     if (icon) icon.classList.add('fa-spin');
 
+    // 1. First show top cards immediately from cached /api/stats without blocking on hourly
     try {
-      const [statsRes, hourlyRes, catRes] = await Promise.all([
-        fetch('/api/stats'),
+      const statsRes = await fetch('/api/stats');
+      if (statsRes.ok) {
+        const stats = await statsRes.json();
+        const total = stats.total || 0;
+        const blocked = stats.blocked || 0;
+        const cached = stats.cached || stats.cache_hits || 0;
+        const forwarded = stats.forwarded || (total - blocked - cached);
+        const cacheRatio = stats.cache && stats.cache.ratio ? (stats.cache.ratio * 100).toFixed(1) : (stats.cache_pct || "0.0");
+        const blockedPct = stats.blocked_pct || (total > 0 ? ((blocked / total) * 100).toFixed(1) : "0.0");
+
+        const elCacheRatio = document.getElementById('statCacheRatio');
+        if (elCacheRatio) elCacheRatio.innerText = cacheRatio + '%';
+        const elHits = document.getElementById('statHits');
+        if (elHits) elHits.innerText = Number(cached).toLocaleString();
+        const elMisses = document.getElementById('statMisses');
+        if (elMisses) elMisses.innerText = Number(forwarded).toLocaleString();
+        const elLive = document.getElementById('statLive');
+        if (elLive) elLive.innerText = Number(stats.cache ? stats.cache.live : 0).toLocaleString();
+
+        const elBlockedPct = document.getElementById('statBlockedPct');
+        if (elBlockedPct) elBlockedPct.innerText = blockedPct + '%';
+        const elBlockedNum = document.getElementById('statBlockedNum');
+        if (elBlockedNum) elBlockedNum.innerText = Number(blocked).toLocaleString();
+        const elAllowedNum = document.getElementById('statAllowedNum');
+        if (elAllowedNum) elAllowedNum.innerText = Number(total - blocked).toLocaleString();
+
+        if (stats.latency) {
+          const elP50 = document.getElementById('statP50');
+          if (elP50) elP50.innerText = stats.latency.forwarded_p50 + ' ms';
+          const elP95 = document.getElementById('statP95');
+          if (elP95) elP95.innerText = stats.latency.forwarded_p95 + ' ms';
+        }
+
+        if (stats.upstream && stats.upstream.length > 0) {
+          const topWinner = stats.upstream[0];
+          const elWinner = document.getElementById('statWinnerIp');
+          if (elWinner) elWinner.innerText = topWinner.ip + ` (${topWinner.queries})`;
+        }
+
+        renderQtypeGrid(stats.qtype || {});
+
+        const uRef = document.getElementById('totalRulesUniqueRef');
+        const rawRef = document.getElementById('totalRulesRawRef');
+        if (uRef && (stats.total_unique_rules || stats.total_unique || stats.blocklist_size)) {
+          uRef.innerText = Number(stats.total_unique_rules || stats.total_unique || stats.blocklist_size).toLocaleString();
+        }
+        if (rawRef && (stats.total_raw_rules || stats.total_rules)) {
+          rawRef.innerText = Number(stats.total_raw_rules || stats.total_rules).toLocaleString();
+        }
+
+        // If categories available in stats, render pie immediately
+        const catCounts = stats.blocked_by_category || stats.categories;
+        if (catCounts) {
+          renderPieChart(catCounts);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load top metric stats:", e);
+    }
+
+    // 2. Load heavy charts lazily
+    try {
+      const [hourlyRes, catRes] = await Promise.all([
         fetch('/api/hourly?hours=24'),
         fetch('/api/categories')
       ]);
 
-      const stats = await statsRes.json();
-      const hourly = await hourlyRes.json();
-      const catData = await catRes.json();
-
-      // Top Metric Cards
-      const total = stats.total || 0;
-      const blocked = stats.blocked || 0;
-      const cached = stats.cached || stats.cache_hits || 0;
-      const forwarded = stats.forwarded || (total - blocked - cached);
-      const cacheRatio = stats.cache && stats.cache.ratio ? (stats.cache.ratio * 100).toFixed(1) : (stats.cache_pct || "0.0");
-      const blockedPct = stats.blocked_pct || (total > 0 ? ((blocked / total) * 100).toFixed(1) : "0.0");
-
-      document.getElementById('statCacheRatio').innerText = cacheRatio + '%';
-      document.getElementById('statHits').innerText = Number(cached).toLocaleString();
-      document.getElementById('statMisses').innerText = Number(forwarded).toLocaleString();
-      document.getElementById('statLive').innerText = Number(stats.cache ? stats.cache.live : 0).toLocaleString();
-
-      document.getElementById('statBlockedPct').innerText = blockedPct + '%';
-      document.getElementById('statBlockedNum').innerText = Number(blocked).toLocaleString();
-      document.getElementById('statAllowedNum').innerText = Number(total - blocked).toLocaleString();
-
-      if (stats.latency) {
-        document.getElementById('statP50').innerText = stats.latency.forwarded_p50 + ' ms';
-        document.getElementById('statP95').innerText = stats.latency.forwarded_p95 + ' ms';
+      if (hourlyRes.ok) {
+        const hourly = await hourlyRes.json();
+        renderBarChart(hourly);
       }
 
-      if (stats.upstream && stats.upstream.length > 0) {
-        const topWinner = stats.upstream[0];
-        document.getElementById('statWinnerIp').innerText = topWinner.ip + ` (${topWinner.queries})`;
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        const categories = catData.blocked_by_category || catData.categories || { ads: 0, trackers: 0, malware: 0, custom: 0 };
+        renderPieChart(categories);
+        if (catData.total_unique_rules) {
+          const uRef = document.getElementById('totalRulesUniqueRef');
+          if (uRef) uRef.innerText = Number(catData.total_unique_rules).toLocaleString();
+        }
+        if (catData.total_raw_rules) {
+          const rawRef = document.getElementById('totalRulesRawRef');
+          if (rawRef) rawRef.innerText = Number(catData.total_raw_rules).toLocaleString();
+        }
       }
-
-      // Render Hourly Bar Chart
-      renderBarChart(hourly);
-
-      // Render Category Pie Chart from /api/stats category breakdown (ads, trackers, malware, custom)
-      const categories = stats.categories || { ads: 0, trackers: 0, malware: 0, custom: 0 };
-      if ((!stats.categories || Object.values(stats.categories).reduce((a,b)=>a+b, 0) === 0) && stats.top_blocked && stats.top_blocked.length > 0) {
-        stats.top_blocked.forEach(([domain, count]) => {
-          const d = domain.toLowerCase();
-          if (d.includes('facebook') || d.includes('track') || d.includes('analytics')) categories.trackers += count;
-          else if (d.includes('malware') || d.includes('phish')) categories.malware += count;
-          else if (d.includes('doubleclick') || d.includes('custom')) categories.custom += count;
-          else categories.ads += count;
-        });
-      }
-      renderPieChart(categories);
-
-      // Render QType Grid
-      renderQtypeGrid(stats.qtype || {});
-
     } catch (err) {
-      console.error("Failed to load analytics:", err);
+      console.error("Failed to load analytics charts:", err);
     } finally {
       if (icon) icon.classList.remove('fa-spin');
     }
   }
 
   function renderBarChart(hourly) {
+    const skel = document.getElementById('barChartSkeleton');
+    if (skel) skel.classList.add('hidden');
+
     const ctx = document.getElementById('hourlyBarChart').getContext('2d');
     if (barChart) barChart.destroy();
 
@@ -280,11 +334,31 @@
   }
 
   function renderPieChart(cats) {
+    const skel = document.getElementById('pieChartSkeleton');
+    if (skel) skel.classList.add('hidden');
+    const emptyState = document.getElementById('pieEmptyState');
+
+    const totalBlocked = Object.values(cats || {}).reduce((a, b) => a + Number(b || 0), 0);
+
     const ctx = document.getElementById('categoryPieChart').getContext('2d');
-    if (pieChart) pieChart.destroy();
+    if (pieChart) {
+      pieChart.destroy();
+      pieChart = null;
+    }
+
+    if (totalBlocked === 0) {
+      if (emptyState) emptyState.classList.remove('hidden');
+      const leg = document.getElementById('categoryLegend');
+      if (leg) {
+        leg.innerHTML = '<div class="col-span-2 text-center text-slate-400 py-4 text-xs font-mono">No blocks in last 24h</div>';
+      }
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add('hidden');
 
     const labels = Object.keys(cats).map(c => c.charAt(0).toUpperCase() + c.slice(1));
-    const data = Object.values(cats);
+    const data = Object.values(cats).map(v => Number(v) || 0);
     const colors = ['#f59e0b', '#f43f5e', '#a855f7', '#3b82f6', '#06b6d4'];
 
     pieChart = new Chart(ctx, {
@@ -309,7 +383,15 @@
             borderColor: '#334155',
             borderWidth: 1,
             titleFont: { family: 'monospace' },
-            bodyFont: { family: 'monospace' }
+            bodyFont: { family: 'monospace' },
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const val = Number(context.raw) || 0;
+                const pct = totalBlocked > 0 ? ((val / totalBlocked) * 100).toFixed(1) : '0.0';
+                return ` ${label}: ${val.toLocaleString()} (${pct}%)`;
+              }
+            }
           }
         }
       }
@@ -320,17 +402,18 @@
     let lHtml = '';
     labels.forEach((l, i) => {
       const cnt = data[i] || 0;
+      const pct = totalBlocked > 0 ? ((cnt / totalBlocked) * 100).toFixed(1) : '0.0';
       lHtml += `
         <div class="flex items-center justify-between p-2 rounded-xl bg-slate-950/60 border border-slate-800/80">
           <div class="flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colors[i]}"></span>
-            <span class="text-slate-300 font-bold">${l}</span>
+            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colors[i % colors.length]}"></span>
+            <span class="text-slate-300 font-bold">${l}:</span>
           </div>
-          <span class="text-slate-400 font-mono">${Number(cnt).toLocaleString()}</span>
+          <span class="text-slate-400 font-mono text-[11px]"><strong class="text-white">${Number(cnt).toLocaleString()}</strong> (${pct}%)</span>
         </div>
       `;
     });
-    leg.innerHTML = lHtml;
+    if (leg) leg.innerHTML = lHtml;
   }
 
   function renderQtypeGrid(qtypes) {
@@ -351,7 +434,13 @@
     grid.innerHTML = html;
   }
 
-  document.addEventListener('DOMContentLoaded', loadAnalytics);
+  window.initAnalytics = loadAnalytics;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadAnalytics);
+  } else {
+    loadAnalytics();
+  }
 </script>
 {% endblock %}
 

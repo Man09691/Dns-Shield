@@ -2,6 +2,10 @@
 
 {% block title %}Query Logs — DNS Shield{% endblock %}
 
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6 max-w-7xl mx-auto">
 
@@ -14,7 +18,7 @@
           0 Total Logs
         </span>
       </h1>
-      <p class="text-xs text-slate-400 mt-1">Live inspection of all client DNS queries processed on port 5053.</p>
+      <p class="text-xs text-slate-400 mt-1">Live inspection of all client DNS queries processed on port 53.</p>
     </div>
 
     <!-- Quick stats summary pills -->
@@ -49,9 +53,35 @@
       </button>
     </div>
 
-    <!-- Right: Filter Status Dropdown + Page Size + Refresh Status -->
+    <!-- Right: Filters + Page Size + Refresh -->
     <div class="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap">
       
+      <!-- Type Filter -->
+      <div class="flex items-center gap-2">
+        <label for="filterType" class="text-xs text-slate-400 font-mono">Type:</label>
+        <select id="filterType" onchange="onFilterChange()"
+          class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition font-mono cursor-pointer">
+          <option value="All">All Types</option>
+          <option value="A">A</option>
+          <option value="AAAA">AAAA</option>
+          <option value="HTTPS">HTTPS</option>
+          <option value="CNAME">CNAME</option>
+          <option value="MX">MX</option>
+          <option value="TXT">TXT</option>
+        </select>
+      </div>
+
+      <!-- Transport Filter -->
+      <div class="flex items-center gap-2">
+        <label for="filterTransport" class="text-xs text-slate-400 font-mono">Transport:</label>
+        <select id="filterTransport" onchange="onFilterChange()"
+          class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition font-mono cursor-pointer">
+          <option value="All">All Transport</option>
+          <option value="UDP">UDP</option>
+          <option value="TCP">TCP</option>
+        </select>
+      </div>
+
       <!-- Status Filter -->
       <div class="flex items-center gap-2">
         <label for="statusFilter" class="text-xs text-slate-400 font-mono">Status:</label>
@@ -61,19 +91,29 @@
           <option value="BLOCKED">🔴 BLOCKED only</option>
           <option value="FORWARDED">🟢 FORWARDED only</option>
           <option value="CACHED">🔵 CACHED only</option>
+          <option value="STALE">🟠 STALE only</option>
           <option value="RATE_LIMITED">🟡 RATE LIMITED</option>
         </select>
       </div>
 
       <!-- Limit per page -->
       <div class="flex items-center gap-2">
-        <label for="limitSelect" class="text-xs text-slate-400 font-mono">Per Page:</label>
-        <select id="limitSelect" onchange="onLimitChange()"
+        <label for="perPageSelect" class="text-xs text-slate-400 font-mono">Per Page:</label>
+        <select id="perPageSelect" onchange="onPerPageChange(this.value)"
           class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500 transition font-mono cursor-pointer">
-          <option value="50" selected>50</option>
+          <option value="50">50</option>
           <option value="100">100</option>
           <option value="200">200</option>
         </select>
+      </div>
+
+      <!-- Show Full IP Toggle -->
+      <div class="flex items-center shrink-0">
+        <label for="toggleShowFullIpLogs" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer text-xs font-mono text-slate-300 select-none hover:text-white hover:border-slate-700 transition whitespace-nowrap">
+          <input type="checkbox" id="toggleShowFullIpLogs" onchange="onToggleShowFullIpLogs(this.checked)"
+            class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0 cursor-pointer accent-blue-500">
+          <span>Show full IP</span>
+        </label>
       </div>
 
       <!-- Manual refresh button -->
@@ -96,17 +136,63 @@
             <th class="px-5 py-3.5">Client IP</th>
             <th class="px-5 py-3.5">Domain</th>
             <th class="px-4 py-3.5">Type</th>
+            <th class="px-4 py-3.5">Transport</th>
             <th class="px-4 py-3.5">Status</th>
             <th class="px-5 py-3.5 text-right">TimeTaken</th>
             <th class="px-5 py-3.5">Upstream</th>
           </tr>
         </thead>
         <tbody id="logsTableBody" class="divide-y divide-slate-800/60 font-mono">
+          <!-- 5 Modern Skeleton Shimmer Rows -->
           <tr>
-            <td colspan="7" class="text-center py-12 text-slate-400">
-              <i class="fa-solid fa-spinner fa-spin text-lg mb-2 text-slate-400 block"></i>
-              Loading query logs...
-            </td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-36 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5 text-right"><div class="skeleton h-3.5 w-12 rounded ml-auto"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-28 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-44 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5 text-right"><div class="skeleton h-3.5 w-12 rounded ml-auto"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-32 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5 text-right"><div class="skeleton h-3.5 w-12 rounded ml-auto"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-48 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5 text-right"><div class="skeleton h-3.5 w-12 rounded ml-auto"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-28 rounded"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-40 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-10 rounded"></div></td>
+            <td class="px-4 py-3.5"><div class="skeleton h-3.5 w-16 rounded"></div></td>
+            <td class="px-5 py-3.5 text-right"><div class="skeleton h-3.5 w-12 rounded ml-auto"></div></td>
+            <td class="px-5 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
           </tr>
         </tbody>
       </table>
@@ -114,21 +200,25 @@
 
     <!-- Table Footer / Pagination -->
     <div class="p-4 border-t border-slate-800/80 bg-slate-900/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-      <div id="paginationInfo" class="text-slate-400 font-mono">
-        Showing 0 to 0 of 0 entries
+      <div class="flex items-center gap-3">
+        <span id="paginationInfo" class="text-slate-400 font-mono">
+          Showing 0-0 of 0
+        </span>
+        <span class="text-slate-600">•</span>
+        <span id="pageIndicator" class="text-slate-400 font-mono">
+          Page 1 of 1
+        </span>
       </div>
 
       <div class="flex items-center gap-2">
-        <button id="btnPrevPage" onclick="prevPage()" disabled
+        <button id="prevBtn" onclick="prevPage()" disabled
           class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 hover:text-slate-200 transition font-mono">
-          <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+          <i class="fa-solid fa-chevron-left mr-1"></i> Previous
         </button>
 
-        <span id="pageIndicator" class="px-3 py-1.5 rounded-lg bg-slate-950 text-cyan-400 font-mono border border-slate-800">
-          Page 1 / 1
-        </span>
+        <span id="pageNumbers" class="flex items-center gap-1"></span>
 
-        <button id="btnNextPage" onclick="nextPage()" disabled
+        <button id="nextBtn" onclick="nextPage()" disabled
           class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 hover:text-slate-200 transition font-mono">
           Next <i class="fa-solid fa-chevron-right ml-1"></i>
         </button>
@@ -141,73 +231,95 @@
 
 {% block extra_scripts %}
 <script>
-  let allLogs = [];
+  // 1. State
   let currentPage = 1;
-  let pageSize = 100;
+  let perPage = parseInt(localStorage.getItem('logs_per_page') || '50', 10);
+  if (![50, 100, 200].includes(perPage)) perPage = 50;
+  let total = 0;
+  let totalPages = 1;
+  let currentFilter = 'ALL';
+  let currentType = 'All';
+  let currentTransport = 'All';
+  let searchText = '';
+
   let isFetching = false;
   let logPollTimer = null;
+  let searchDebounceTimer = null;
 
-  // Search input: filter table rows client-side by domain or client IP
-  document.getElementById('logSearch').addEventListener('input', (e) => {
-    const clearBtn = document.getElementById('clearSearchBtn');
-    if (e.target.value) {
-      clearBtn.classList.remove('hidden');
-    } else {
-      clearBtn.classList.add('hidden');
-    }
+  // 2. Per page selector change handler
+  function onPerPageChange(val) {
+    perPage = parseInt(val || (document.getElementById('perPageSelect') ? document.getElementById('perPageSelect').value : 50), 10) || 50;
+    localStorage.setItem('logs_per_page', perPage);
     currentPage = 1;
-    applyClientFilters();
-  });
+    fetchLogs();
+  }
+
+  // 7. Search input debounce (300ms) and filter change
+  function setupSearchAndFilters() {
+    const searchInput = document.getElementById('logSearch');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (clearBtn) {
+          if (val) clearBtn.classList.remove('hidden');
+          else clearBtn.classList.add('hidden');
+        }
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => {
+          searchText = val.trim();
+          currentPage = 1;
+          fetchLogs();
+        }, 300);
+      });
+    }
+
+    const filterSelect = document.getElementById('statusFilter');
+    if (filterSelect) {
+      filterSelect.addEventListener('change', onFilterChange);
+    }
+
+    const typeSelect = document.getElementById('filterType');
+    if (typeSelect) {
+      typeSelect.addEventListener('change', onFilterChange);
+    }
+
+    const transportSelect = document.getElementById('filterTransport');
+    if (transportSelect) {
+      transportSelect.addEventListener('change', onFilterChange);
+    }
+
+    const perPageEl = document.getElementById('perPageSelect');
+    if (perPageEl) {
+      perPageEl.value = String(perPage);
+    }
+  }
 
   function clearSearch() {
-    document.getElementById('logSearch').value = '';
-    document.getElementById('clearSearchBtn').classList.add('hidden');
+    const searchInput = document.getElementById('logSearch');
+    if (searchInput) searchInput.value = '';
+    const clearBtn = document.getElementById('clearSearchBtn');
+    if (clearBtn) clearBtn.classList.add('hidden');
+    searchText = '';
     currentPage = 1;
-    applyClientFilters();
+    fetchLogs();
   }
 
   function onFilterChange() {
+    const filterSelect = document.getElementById('statusFilter');
+    currentFilter = filterSelect ? filterSelect.value : 'ALL';
+
+    const typeSelect = document.getElementById('filterType');
+    currentType = typeSelect ? typeSelect.value : 'All';
+
+    const transportSelect = document.getElementById('filterTransport');
+    currentTransport = transportSelect ? transportSelect.value : 'All';
+
     currentPage = 1;
-    applyClientFilters();
+    fetchLogs();
   }
 
-  function onLimitChange() {
-    pageSize = parseInt(document.getElementById('limitSelect').value) || 100;
-    currentPage = 1;
-    applyClientFilters();
-  }
-
-  function prevPage() {
-    if (currentPage > 1) {
-      currentPage--;
-      applyClientFilters();
-    }
-  }
-
-  function nextPage() {
-    const filtered = getFilteredLogs();
-    const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-    if (currentPage < totalPages) {
-      currentPage++;
-      applyClientFilters();
-    }
-  }
-
-  function getStatusBadge(status) {
-    status = (status || "").toUpperCase();
-    if (status === 'BLOCKED') {
-      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>BLOCKED</span>';
-    }
-    if (status === 'CACHED') {
-      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>CACHED</span>';
-    }
-    if (status === 'RATE_LIMITED') {
-      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>RATE_LIMITED</span>';
-    }
-    return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>FORWARDED</span>';
-  }
-
-  // Fetch real logs from DB
+  // 3. fetchLogs()
   async function fetchLogs() {
     if (isFetching) return;
     isFetching = true;
@@ -215,66 +327,71 @@
     const icon = document.getElementById('manualRefreshIcon');
     if (icon) icon.classList.add('fa-spin');
 
+    const offset = (currentPage - 1) * perPage;
+    const url = `/api/queries?limit=${perPage}&per_page=${perPage}&offset=${offset}&page=${currentPage}&paginate=1&filter=${currentFilter}&type=${currentType}&transport=${currentTransport}&search=${encodeURIComponent(searchText)}`;
+
     try {
-      const res = await fetch(`/api/logs?limit=100`);
+      const res = await fetch(url);
       const data = await res.json();
 
+      let logs = [];
       if (Array.isArray(data)) {
-        allLogs = data;
-      } else if (data.logs) {
-        allLogs = data.logs;
+        logs = data;
+        total = data.length;
+        totalPages = Math.ceil(total / perPage) || 1;
+      } else if (data && (data.queries || data.logs)) {
+        logs = data.queries || data.logs;
+        total = typeof data.total === 'number' ? data.total : logs.length;
+        totalPages = typeof data.total_pages === 'number' ? data.total_pages : (Math.ceil(total / perPage) || 1);
+        if (typeof data.page === 'number') {
+          currentPage = data.page;
+        }
       }
 
-      applyClientFilters();
+      // Safety check if totalPages shrank
+      if (currentPage > totalPages && totalPages > 0) {
+        currentPage = totalPages;
+      }
+
+      // 4. Render table body (NO slice!)
+      renderLogsTable(logs);
+
+      // 4 & 5. Update pagination UI
+      updatePagination(offset, logs.length);
+
+      // Update pills
       updateSummaryPills();
 
     } catch (err) {
       console.error("Error fetching logs:", err);
+      const tbody = document.getElementById('logsTableBody');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" class="text-center py-12 text-slate-400 font-mono text-xs">
+              <div class="text-red-400 mb-2 font-bold">Failed to load query logs</div>
+              <button onclick="fetchLogs()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-sans font-semibold">
+                <i class="fa-solid fa-rotate-right mr-1"></i> Retry
+              </button>
+            </td>
+          </tr>
+        `;
+      }
     } finally {
       isFetching = false;
       if (icon) icon.classList.remove('fa-spin');
     }
   }
 
-  // Filter client-side by domain/client and status dropdown
-  function getFilteredLogs() {
-    const q = (document.getElementById('logSearch').value || '').trim().toLowerCase();
-    const filter = (document.getElementById('statusFilter').value || 'ALL').toUpperCase();
-
-    return allLogs.filter(log => {
-      // Domain or Client match
-      if (q) {
-        const dMatch = log.domain && log.domain.toLowerCase().includes(q);
-        const cMatch = log.client && log.client.toLowerCase().includes(q);
-        if (!dMatch && !cMatch) return false;
-      }
-      // Status match
-      if (filter !== 'ALL') {
-        if (log.status !== filter) return false;
-      }
-      return true;
-    });
-  }
-
-  function applyClientFilters() {
-    const filtered = getFilteredLogs();
-    const total = filtered.length;
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    if (currentPage > totalPages) currentPage = totalPages;
-
-    const startIdx = (currentPage - 1) * pageSize;
-    const pageItems = filtered.slice(startIdx, startIdx + pageSize);
-
-    renderLogsTable(pageItems);
-    updatePaginationControls(total, startIdx, pageItems.length);
-  }
-
+  // 4. Render table body - show whatever API returns, NO slice
   function renderLogsTable(logs) {
     const tbody = document.getElementById('logsTableBody');
+    if (!tbody) return;
+
     if (!logs || logs.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="7" class="text-center py-12 text-slate-400">
+          <td colspan="8" class="text-center py-12 text-slate-400">
             <i class="fa-solid fa-inbox text-2xl mb-2 text-slate-400 block"></i>
             No matching query records found.
           </td>
@@ -286,17 +403,19 @@
     let html = '';
     logs.forEach(log => {
       const statusBadge = getStatusBadge(log.status);
+      const transportBadge = getTransportBadge(log.transport);
       const upstream = log.upstream ? `<span class="text-slate-300 font-mono">${log.upstream}</span>` : '<span class="text-slate-400">-</span>';
       const latVal = (typeof log.latency === 'number') ? log.latency.toFixed(1) : log.latency;
-      // Real timestamp from DB, never Date.now()
       const timeDisplay = log.time || log.timestamp || '-';
+      const typeDisplay = log.type || log.qtype || 'A';
 
       html += `
         <tr class="hover:bg-slate-900/60 transition">
           <td class="px-5 py-3 text-slate-400 font-mono text-[11px] whitespace-nowrap">${timeDisplay}</td>
           <td class="px-5 py-3 text-slate-300 font-mono text-xs whitespace-nowrap">${log.client || '-'}</td>
           <td class="px-5 py-3 font-mono text-slate-100 font-medium break-all max-w-xs">${log.domain}</td>
-          <td class="px-4 py-3 text-slate-400 font-mono text-xs">${log.qtype || 'A'}</td>
+          <td class="px-4 py-3 text-slate-400 font-mono text-xs">${typeDisplay}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${transportBadge}</td>
           <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
           <td class="px-5 py-3 text-right font-mono font-bold ${log.blocked ? 'text-red-400' : 'text-emerald-400'} whitespace-nowrap">${latVal} ms</td>
           <td class="px-5 py-3 text-xs whitespace-nowrap">${upstream}</td>
@@ -307,29 +426,120 @@
     tbody.innerHTML = html;
   }
 
-  function updatePaginationControls(total, startIdx, count) {
-    const totalPages = Math.ceil(total / pageSize) || 1;
-    const end = count > 0 ? startIdx + count : 0;
-    const start = count > 0 ? startIdx + 1 : 0;
+  function getTransportBadge(transport) {
+    const t = (transport || 'UDP').toUpperCase();
+    if (t === 'TCP') {
+      return '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">TCP</span>';
+    }
+    return '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-slate-800 text-slate-300 border border-slate-700">UDP</span>';
+  }
 
-    document.getElementById('logCountBadge').innerText = `${allLogs.length} Total Logs`;
-    document.getElementById('paginationInfo').innerText = `Showing ${start.toLocaleString()} to ${end.toLocaleString()} of ${total.toLocaleString()} filtered entries`;
-    document.getElementById('pageIndicator').innerText = `Page ${currentPage} / ${totalPages}`;
+  // 4 & 5. Footer text & Pagination controls
+  function updatePagination(offset, count) {
+    const logBadge = document.getElementById('logCountBadge');
+    if (logBadge) {
+      logBadge.innerText = `${total.toLocaleString()} Total Logs`;
+    }
 
-    document.getElementById('btnPrevPage').disabled = (currentPage <= 1);
-    document.getElementById('btnNextPage').disabled = (currentPage >= totalPages);
+    const showingText = total > 0 ? `Showing ${offset + 1}-${Math.min(offset + perPage, total)} of ${total}` : 'Showing 0-0 of 0';
+    const pageText = `Page ${currentPage} of ${totalPages}`;
+
+    const infoEl = document.getElementById('paginationInfo');
+    if (infoEl) {
+      infoEl.innerText = showingText;
+    }
+
+    const pageIndicator = document.getElementById('pageIndicator');
+    if (pageIndicator) {
+      pageIndicator.innerText = pageText;
+    }
+
+    const prevBtn = document.getElementById('prevBtn') || document.getElementById('btnPrevPage');
+    if (prevBtn) {
+      prevBtn.disabled = (currentPage <= 1);
+    }
+
+    const nextBtn = document.getElementById('nextBtn') || document.getElementById('btnNextPage');
+    if (nextBtn) {
+      nextBtn.disabled = (currentPage >= totalPages);
+    }
+
+    // Page numbers UI: loop 1..totalPages (show max 5 around currentPage)
+    const pageNumbersEl = document.getElementById('pageNumbers');
+    if (pageNumbersEl) {
+      let html = '';
+      if (totalPages <= 5) {
+        for (let p = 1; p <= totalPages; p++) {
+          const isCur = (p === currentPage);
+          html += `<button type="button" onclick="goToPage(${p})" class="px-2.5 py-1 rounded-lg text-xs font-mono transition ${isCur ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-900/30' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'}">${p}</button>`;
+        }
+      } else {
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        if (endPage - startPage < 4) {
+          startPage = Math.max(1, endPage - 4);
+        }
+        for (let p = startPage; p <= endPage; p++) {
+          const isCur = (p === currentPage);
+          html += `<button type="button" onclick="goToPage(${p})" class="px-2.5 py-1 rounded-lg text-xs font-mono transition ${isCur ? 'bg-blue-600 text-white font-bold shadow-sm shadow-blue-900/30' : 'bg-slate-900 border border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white'}">${p}</button>`;
+        }
+      }
+      pageNumbersEl.innerHTML = html;
+    }
+  }
+
+  function prevPage() {
+    if (currentPage > 1) {
+      currentPage--;
+      fetchLogs();
+    }
+  }
+
+  function nextPage() {
+    if (currentPage < totalPages) {
+      currentPage++;
+      fetchLogs();
+    }
+  }
+
+  function goToPage(p) {
+    if (p >= 1 && p <= totalPages && p !== currentPage) {
+      currentPage = p;
+      fetchLogs();
+    }
+  }
+
+  function getStatusBadge(status) {
+    status = (status || "").toUpperCase();
+    if (status === 'BLOCKED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-red-500/10 text-red-400 border border-red-500/20"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>BLOCKED</span>';
+    }
+    if (status === 'CACHED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20"><span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>CACHED</span>';
+    }
+    if (status === 'STALE') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>STALE</span>';
+    }
+    if (status === 'RATE_LIMITED') {
+      return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>RATE_LIMITED</span>';
+    }
+    return '<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>FORWARDED</span>';
   }
 
   async function updateSummaryPills() {
     try {
       const res = await fetch('/api/stats');
       const stats = await res.json();
-      document.getElementById('pillBlocked').innerText = (stats.blocked || 0).toLocaleString();
-      document.getElementById('pillForwarded').innerText = (stats.forwarded || (stats.total - stats.blocked - stats.cached) || 0).toLocaleString();
-      document.getElementById('pillCached').innerText = (stats.cached || stats.cache_hits || 0).toLocaleString();
+      const bEl = document.getElementById('pillBlocked');
+      if (bEl) bEl.innerText = (stats.blocked || 0).toLocaleString();
+      const fEl = document.getElementById('pillForwarded');
+      if (fEl) fEl.innerText = (stats.forwarded || (stats.total - stats.blocked - stats.cached) || 0).toLocaleString();
+      const cEl = document.getElementById('pillCached');
+      if (cEl) cEl.innerText = (stats.cached || stats.cache_hits || 0).toLocaleString();
     } catch(e) {}
   }
 
+  // 8. Auto-refresh ON: setInterval fetchLogs() keeping currentPage same
   function startLogPolling() {
     if (logPollTimer) clearInterval(logPollTimer);
     logPollTimer = setInterval(() => {
@@ -346,18 +556,52 @@
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  async function loadLogsSettings() {
+    try {
+      const res = await fetch('/api/settings');
+      const data = await res.json();
+      const toggle = document.getElementById('toggleShowFullIpLogs');
+      if (toggle && data.show_full_ip !== undefined) {
+        toggle.checked = Boolean(data.show_full_ip);
+      }
+    } catch (e) {
+      console.error("Failed to load settings:", e);
+    }
+  }
+
+  async function onToggleShowFullIpLogs(checked) {
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ show_full_ip: checked, anonymize_ip: !checked })
+      });
+      fetchLogs();
+    } catch (e) {
+      console.error("Failed to save Show Full IP setting:", e);
+    }
+  }
+
+  window.initLogs = function() {
+    setupSearchAndFilters();
+    loadLogsSettings();
     fetchLogs();
     startLogPolling();
+  };
 
-    window.addEventListener('autorefresh-toggle', (e) => {
-      if (e.detail.enabled) {
-        fetchLogs();
-        startLogPolling();
-      } else {
-        stopLogPolling();
-      }
-    });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.initLogs);
+  } else {
+    window.initLogs();
+  }
+
+  window.addEventListener('autorefresh-toggle', (e) => {
+    if (e.detail.enabled) {
+      fetchLogs();
+      startLogPolling();
+    } else {
+      stopLogPolling();
+    }
   });
 </script>
 {% endblock %}

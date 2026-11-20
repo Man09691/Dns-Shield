@@ -34,7 +34,7 @@ def test_domain(domain, expect_blocked=True):
     sock.settimeout(5)
 
     start = time.time()
-    sock.sendto(query, ("127.0.0.1", 5053))
+    sock.sendto(query, ("127.0.0.1", 53))
 
     try:
         response, _ = sock.recvfrom(4096)

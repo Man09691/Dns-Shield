@@ -56,3 +56,15 @@ htmlcov/
 *.tmp
 scratch/
 
+
+@"
+venv/
+__pycache__/
+*.pyc
+*.db
+*.log
+*.bak
+logs/
+DELETE_BACKUP/
+archive/
+"@ | Set-Content .gitignore

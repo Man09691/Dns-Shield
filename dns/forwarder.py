@@ -145,10 +145,11 @@ def _worker_tcp(data, server_ip, port, timeout):
 
 def forward_query(data, upstream_dns="8.8.8.8", upstream_port=53,
                   fallback_dns="1.1.1.1", timeout=3, extra_upstreams=None,
-                  return_winner=False):
+                  return_winner=False, tcp_fallback=True):
     """
     Forward query to upstream DNS servers in parallel race.
     First valid response wins. Returns DNSForwardResponse or None.
+    If tcp_fallback is False or timeout <= 2.0s, does not attempt slow TCP retry on UDP timeout.
     """
     global _last_winner
 
@@ -157,19 +158,20 @@ def forward_query(data, upstream_dns="8.8.8.8", upstream_port=53,
         upstreams.extend(extra_upstreams)
 
     # Deduplicate while preserving order
+
     seen = set()
     uniq = []
     for ip in upstreams:
         if ip and ip not in seen:
             seen.add(ip)
-            seen.add(ip)
             uniq.append(ip)
     upstreams = uniq
+
 
     out_q = queue.Queue(maxsize=1)
     threads = []
     # Set socket timeout slightly lower than total timeout so threads exit cleanly
-    sock_timeout = max(1.0, float(timeout) - 0.5)
+    sock_timeout = max(0.5, float(timeout) - 0.2 if float(timeout) <= 2.0 else float(timeout) - 0.5)
 
     for ip in upstreams:
         t = threading.Thread(
@@ -189,18 +191,19 @@ def forward_query(data, upstream_dns="8.8.8.8", upstream_port=53,
             return resp, winner
         return DNSForwardResponse(resp, upstream=winner, elapsed=elapsed)
     except queue.Empty:
-        # UDP timed out; attempt quick TCP fallback on primary
-        for ip in upstreams:
-            tcp_resp, tcp_elapsed = _worker_tcp(data, ip, upstream_port, timeout=1.5)
-            if tcp_resp:
-                with _lock:
-                    _queries[ip] = _queries.get(ip, 0) + 1
-                    _total_ms[ip] = _total_ms.get(ip, 0.0) + tcp_elapsed
-                    _last_winner = ip
-                logger.info(f"Forwarder TCP winner: {ip} in {tcp_elapsed:.1f}ms")
-                if return_winner:
-                    return tcp_resp, ip
-                return DNSForwardResponse(tcp_resp, upstream=ip, elapsed=tcp_elapsed)
+        # UDP timed out; attempt quick TCP fallback only if allowed and timeout > 2.0s
+        if tcp_fallback and float(timeout) > 2.0:
+            for ip in upstreams:
+                tcp_resp, tcp_elapsed = _worker_tcp(data, ip, upstream_port, timeout=1.5)
+                if tcp_resp:
+                    with _lock:
+                        _queries[ip] = _queries.get(ip, 0) + 1
+                        _total_ms[ip] = _total_ms.get(ip, 0.0) + tcp_elapsed
+                        _last_winner = ip
+                    logger.info(f"Forwarder TCP winner: {ip} in {tcp_elapsed:.1f}ms")
+                    if return_winner:
+                        return tcp_resp, ip
+                    return DNSForwardResponse(tcp_resp, upstream=ip, elapsed=tcp_elapsed)
 
         logger.warning(f"All upstreams timed out: {upstreams}")
         if return_winner:

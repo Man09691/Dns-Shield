@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+
+{% block title %}Watchlist — DNS Shield{% endblock %}
+
+{% block extra_head %}
+<style>html,body{background:#0f172a!important;color:#f8fafc!important}</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-8 max-w-5xl mx-auto">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-white flex items-center gap-2.5">
+        <span>Watchlist</span>
+        <span id="watchlistCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono font-bold border border-emerald-500/20">
+          <span class="skeleton inline-block w-28 h-3.5 rounded"></span>
+        </span>
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Pinned domains always kept in DNS cache with zero-latency resolution.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       ADD NEW WATCHLIST DOMAIN INPUT
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl p-6 shadow-sm">
+    <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+      <i class="fa-solid fa-plus text-emerald-400"></i>
+      <span>Add Domain to Watchlist</span>
+    </h2>
+
+    <form id="addWatchForm" onsubmit="event.preventDefault(); addDomain();" class="relative flex flex-col sm:flex-row items-center gap-3">
+      <div class="relative flex-1 w-full">
+        <i class="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="watchInput" placeholder="e.g. youtube, google, meta, claude or full domain"
+          autocomplete="off" spellcheck="false" required
+          oninput="handleInputSuggestions(event)"
+          onkeydown="handleInputKeydown(event)"
+          class="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-400 font-mono outline-none focus:border-emerald-500 transition shadow-inner" />
+
+        <!-- Floating Autocomplete Dropdown -->
+        <div id="suggestBox" class="hidden absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-800"></div>
+      </div>
+      <button type="submit" id="btnAddWatchlist"
+        class="w-full sm:w-auto px-6 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 shrink-0">
+        <i class="fa-solid fa-check"></i>
+        <span>Add to Watchlist</span>
+      </button>
+    </form>
+    <p class="text-[11px] text-slate-400 mt-2 font-mono">
+      Type a name like YouTube, Google, Meta, Claude. We will convert it to the correct domain.
+    </p>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       WATCHLIST DATA TABLE
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="bg-[#0f172a] border border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+    <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+      <h3 class="text-sm font-bold text-white font-mono">Watchlist Hostnames</h3>
+      <div class="relative w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input type="text" id="tableFilter" oninput="filterWatchlist()" placeholder="Search in watchlist..."
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-400 font-mono outline-none focus:border-emerald-500" />
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-xs font-mono">
+        <thead class="bg-slate-900/90 text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-800">
+          <tr>
+            <th class="px-6 py-3.5 w-16">#</th>
+            <th class="px-6 py-3.5">Domain</th>
+            <th class="px-6 py-3.5">Added Date</th>
+            <th class="px-6 py-3.5">Last Used</th>
+            <th class="px-6 py-3.5">Status</th>
+            <th class="px-6 py-3.5 text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody id="watchTableBody" class="divide-y divide-slate-800/60">
+          <tr>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-6 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-48 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-6 py-3.5 text-right"><div class="skeleton h-3.5 w-14 rounded ml-auto"></div></td>
+          </tr>
+          <tr>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-6 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-64 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-20 rounded"></div></td>
+            <td class="px-6 py-3.5"><div class="skeleton h-3.5 w-24 rounded"></div></td>
+            <td class="px-6 py-3.5 text-right"><div class="skeleton h-3.5 w-14 rounded ml-auto"></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  let watchlistData = [];
+  let suggestionsList = [];
+  let selectedSuggestIndex = -1;
+
+  function formatAddedDate(isoString) {
+    if (!isoString || isoString === 'null') {
+      return '<span class="text-slate-400 font-mono text-xs">Default</span>';
+    }
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) {
+        return '<span class="text-slate-400 font-mono text-xs">Default</span>';
+      }
+      return `<span class="text-slate-300 font-mono text-xs">${d.toISOString().slice(0, 10)}</span>`;
+    } catch (e) {
+      return '<span class="text-slate-400 font-mono text-xs">Default</span>';
+    }
+  }
+
+  function formatLastUsed(item) {
+    if (item && item.last_used) {
+      const text = item.last_used;
+      if (text === 'Never') {
+        return '<span class="text-slate-400 font-mono text-xs">Never</span>';
+      }
+      if (text === 'Just now' || text.endsWith('m ago') || text.endsWith('s ago')) {
+        return `<span class="text-emerald-400 font-semibold font-mono text-xs">${text}</span>`;
+      }
+      if (text.endsWith('h ago')) {
+        return `<span class="text-slate-300 font-mono text-xs">${text}</span>`;
+      }
+      return `<span class="text-slate-400 font-mono text-xs">${text}</span>`;
+    }
+    return formatTimeAgo(item ? item.last_hit : null);
+  }
+
+  function formatTimeAgo(isoString) {
+    if (!isoString || isoString === '0' || isoString === 'null') {
+      return '<span class="text-slate-400 font-mono text-xs">Never</span>';
+    }
+    let d;
+    try {
+      const clean = isoString.replace('Z', '').split('+')[0];
+      const parts = clean.split(/[-T:. ]/);
+      if (parts.length >= 6) {
+        d = new Date(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5]);
+      } else {
+        d = new Date(isoString);
+      }
+    } catch (e) {
+      d = new Date(isoString);
+    }
+    if (isNaN(d.getTime())) {
+      return '<span class="text-slate-400 font-mono text-xs">Never</span>';
+    }
+    const now = new Date();
+    const diffSec = Math.max(0, Math.floor((now - d) / 1000));
+
+    if (diffSec < 60) {
+      return '<span class="text-emerald-400 font-semibold font-mono text-xs">Just now</span>';
+    }
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) {
+      return `<span class="text-emerald-400 font-mono text-xs">${diffMin}m ago</span>`;
+    }
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) {
+      return `<span class="text-slate-300 font-mono text-xs">${diffHours}h ago</span>`;
+    }
+    const diffDays = Math.floor(diffHours / 24);
+    return `<span class="text-slate-400 font-mono text-xs">${diffDays}d ago</span>`;
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById('watchTableBody');
+    if (!items || items.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center py-12 text-slate-400 font-mono text-xs">
+            <i class="fa-solid fa-star text-2xl mb-2 text-emerald-500/40 block"></i>
+            No domains in watchlist yet. Domains added here will always be pinned in cache.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    let html = '';
+    items.forEach((item, idx) => {
+      const isAllCached = (item.cache_status === 'Active / Cached');
+      const statusBadge = isAllCached
+        ? `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Active / Cached
+           </span>`
+        : `<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>Active / Refreshing
+           </span>`;
+
+      let domainCol = `<span class="text-white font-bold text-xs">${item.domain}</span>`;
+      if (item.is_invalid || item.warning) {
+        domainCol = `
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 font-bold text-xs line-through">${item.domain}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">Invalid</span>
+            ${item.suggestion ? `<button onclick="fixDomain('${item.domain}', '${item.suggestion}')" class="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition">Fix to ${item.suggestion}</button>` : ''}
+          </div>
+        `;
+      }
+
+      html += `
+        <tr class="hover:bg-slate-900/50 transition">
+          <td class="px-6 py-3 text-slate-400 text-xs">${idx + 1}</td>
+          <td class="px-6 py-3">${domainCol}</td>
+          <td class="px-6 py-3">${formatAddedDate(item.added_at)}</td>
+          <td class="px-6 py-3">${formatLastUsed(item)}</td>
+          <td class="px-6 py-3">${statusBadge}</td>
+          <td class="px-6 py-3 text-right">
+            <button onclick="removeDomain('${item.domain}')" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 transition">
+              <i class="fa-solid fa-trash mr-1"></i> Remove
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+    tbody.innerHTML = html;
+  }
+
+  async function loadWatchlist() {
+    try {
+      const res = await fetch('/api/watchlist');
+      const data = await res.json();
+      watchlistData = data.watchlist || data.items || [];
+
+      document.getElementById('watchlistCountBadge').innerText = `${watchlistData.length} Domains Pinned`;
+      const filterVal = document.getElementById('tableFilter').value.trim().toLowerCase();
+      if (filterVal) {
+        filterWatchlist();
+      } else {
+        renderTable(watchlistData);
+      }
+    } catch (err) {
+      console.error("Failed to load watchlist:", err);
+      document.getElementById('watchTableBody').innerHTML = `
+        <tr>
+          <td colspan="5" class="text-center py-10 text-slate-400 font-mono text-xs">
+            <div class="text-red-400 mb-2 font-bold">Failed to load watchlist entries</div>
+            <button onclick="loadWatchlist()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-sans font-semibold">
+              <i class="fa-solid fa-rotate-right mr-1"></i> Retry
+            </button>
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  function filterWatchlist() {
+    const term = document.getElementById('tableFilter').value.trim().toLowerCase();
+    if (!term) {
+      renderTable(watchlistData);
+      return;
+    }
+    const filtered = watchlistData.filter(item => item.domain.toLowerCase().includes(term));
+    renderTable(filtered);
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // AUTOCOMPLETE SUGGESTIONS
+  // ══════════════════════════════════════════════════════════════
+  let suggestDebounce = null;
+
+  function handleInputSuggestions(e) {
+    const val = e.target.value.trim();
+    clearTimeout(suggestDebounce);
+
+    if (val.length < 2) {
+      hideSuggestions();
+      return;
+    }
+
+    suggestDebounce = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/watchlist/suggest?q=${encodeURIComponent(val)}`);
+        const suggestions = await res.json();
+        renderSuggestions(suggestions);
+      } catch (err) {
+        console.error("Suggestion fetch error:", err);
+      }
+    }, 120);
+  }
+
+  function renderSuggestions(list) {
+    suggestionsList = list || [];
+    selectedSuggestIndex = -1;
+    const box = document.getElementById('suggestBox');
+    box.innerHTML = '';
+
+    if (suggestionsList.length === 0) {
+      box.classList.add('hidden');
+      return;
+    }
+
+    suggestionsList.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'flex items-center justify-between px-4 py-2.5 hover:bg-slate-800 cursor-pointer transition select-none group';
+      div.id = `suggest-item-${idx}`;
+      div.innerHTML = `
+        <div class="flex items-center gap-2.5">
+          <i class="fa-solid fa-globe text-amber-400 text-xs"></i>
+          <span class="font-bold text-white text-xs font-mono">${item.domain}</span>
+          <span class="text-xs text-slate-400 font-sans">— ${item.name}</span>
+        </div>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold group-hover:bg-amber-500 group-hover:text-slate-950 transition">
+          Select
+        </span>
+      `;
+      div.onclick = () => selectSuggestion(item.domain);
+      box.appendChild(div);
+    });
+
+    box.classList.remove('hidden');
+  }
+
+  function hideSuggestions() {
+    const box = document.getElementById('suggestBox');
+    if (box) box.classList.add('hidden');
+    selectedSuggestIndex = -1;
+  }
+
+  function handleInputKeydown(e) {
+    const box = document.getElementById('suggestBox');
+    if (box.classList.contains('hidden') || suggestionsList.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      selectedSuggestIndex = (selectedSuggestIndex + 1) % suggestionsList.length;
+      highlightSuggestion();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      selectedSuggestIndex = (selectedSuggestIndex - 1 + suggestionsList.length) % suggestionsList.length;
+      highlightSuggestion();
+    } else if (e.key === 'Enter' && selectedSuggestIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestionsList[selectedSuggestIndex].domain);
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  }
+
+  function highlightSuggestion() {
+    suggestionsList.forEach((_, idx) => {
+      const el = document.getElementById(`suggest-item-${idx}`);
+      if (el) {
+        if (idx === selectedSuggestIndex) {
+          el.classList.add('bg-slate-800');
+        } else {
+          el.classList.remove('bg-slate-800');
+        }
+      }
+    });
+  }
+
+  function selectSuggestion(domain) {
+    const input = document.getElementById('watchInput');
+    input.value = domain;
+    hideSuggestions();
+    addDomain();
+  }
+
+  document.addEventListener('click', (e) => {
+    const box = document.getElementById('suggestBox');
+    const input = document.getElementById('watchInput');
+    if (box && !box.contains(e.target) && e.target !== input) {
+      hideSuggestions();
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // ACTIONS
+  // ══════════════════════════════════════════════════════════════
+  async function addDomain() {
+    const input = document.getElementById('watchInput');
+    const val = input.value.trim();
+    if (!val) return;
+    hideSuggestions();
+
+    const btn = document.getElementById('btnAddWatchlist');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input: val })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.status === 'ok') {
+        showToast(data.message || `'${data.domain}' added to Watchlist`, "success");
+        input.value = '';
+        loadWatchlist();
+        if (typeof updateGlobalSystemInfo === 'function') updateGlobalSystemInfo();
+      } else {
+        showToast(data.message || data.error || "Failed to add domain", "error");
+        if (data.suggestion) {
+          setTimeout(() => {
+            showToast(`Did you mean '${data.suggestion}'?`, "info");
+            input.value = data.suggestion;
+          }, 1200);
+        }
+      }
+    } catch (err) {
+      showToast("Request failed: " + err, "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeDomain(domain) {
+    if (!confirm(`Remove '${domain}' from Watchlist?`)) return;
+
+    try {
+      const res = await fetch(`/api/watchlist?domain=${encodeURIComponent(domain)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`'${domain}' removed from Watchlist`, "success");
+        loadWatchlist();
+        if (typeof updateGlobalSystemInfo === 'function') updateGlobalSystemInfo();
+      } else {
+        showToast(data.message || data.error || "Failed to remove domain", "error");
+      }
+    } catch (err) {
+      showToast("Request failed: " + err, "error");
+    }
+  }
+
+  async function fixDomain(oldDomain, newDomain) {
+    try {
+      const res = await fetch('/api/watchlist/fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_domain: oldDomain, new_domain: newDomain })
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        showToast(data.message || `Fixed to ${newDomain}`, "success");
+        loadWatchlist();
+        if (typeof updateGlobalSystemInfo === 'function') updateGlobalSystemInfo();
+      } else {
+        showToast(data.message || "Failed to fix domain", "error");
+      }
+    } catch (err) {
+      showToast("Request failed: " + err, "error");
+    }
+  }
+
+  window.initWatchlist = loadWatchlist;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadWatchlist);
+  } else {
+    loadWatchlist();
+  }
+</script>
+{% endblock %}
